@@ -48,6 +48,24 @@ tf.app.flags.DEFINE_string('server', '', 'PredictionService host:port')
 tf.app.flags.DEFINE_string('work_dir', '/tmp', 'Working directory. ')
 FLAGS = tf.app.flags.FLAGS
 
+from platform   import system as system_name  # Returns the system/OS name
+from subprocess import call   as system_call  # Execute a shell command
+
+def ping(host):
+  """
+  Returns True if host (str) responds to a ping request.
+  Remember that a host may not respond to a ping (ICMP) request even if the host name is valid.
+  """
+
+  # Ping command count option as function of OS
+  param = '-n 1' if system_name().lower()=='windows' else '-c 1'
+
+  # Building the command. Ex: "ping -c 1 google.com"
+  command = ['ping', param, host]
+
+  # Pinging
+  return system_call(command) == 0
+
 
 class _ResultCounter(object):
   """Counter for the prediction results."""
@@ -138,6 +156,8 @@ def do_inference(hostport, work_dir, concurrency, num_tests):
   """
   test_data_set = mnist_input_data.read_data_sets(work_dir).test
   host, port = hostport.split(':')
+  if ping(host):
+    print("{} is up".format(host))
   channel = implementations.insecure_channel(host, int(port))
   stub = prediction_service_pb2.beta_create_PredictionService_stub(channel)
   result_counter = _ResultCounter(num_tests, concurrency)

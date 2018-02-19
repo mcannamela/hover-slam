@@ -1,0 +1,10 @@
+FROM tensorflow/tensorflow:latest-py3
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y iputils-ping
+RUN pip install grpcio
+RUN pip install --upgrade tensorflow-serving-api-python3
+RUN mkdir /work
+WORKDIR /work
+
+CMD ["/bin/bash"]
