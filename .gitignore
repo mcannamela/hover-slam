@@ -105,3 +105,6 @@ ENV/
 scratch.py
 
 tensorflow-serving/mnist_example/output/*
+test.png
+lines.html
+gan_toy/tests/random_images.html

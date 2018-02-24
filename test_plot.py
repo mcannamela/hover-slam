@@ -1,6 +1,6 @@
 import matplotlib
-print matplotlib.get_configdir()
-print matplotlib.matplotlib_fname()
+print(matplotlib.get_configdir())
+print(matplotlib.matplotlib_fname())
 import matplotlib.pyplot as plt
 import numpy as np
 

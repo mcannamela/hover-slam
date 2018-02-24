@@ -1,0 +1,8 @@
+ARG user=michael
+FROM $user/tensorflow:latest
+
+VOLUME /etc/group:/etc/group:ro
+VOLUME /etc/passwd:/etc/passwd:ro
+VOLUME /etc/shadow:/etc/shadow:ro
+VOLUME /etc/sudoers.d:/etc/sudoers.d:ro
+VOLUME /tmp/.X11-unix:/tmp/.X11-unix:rw
