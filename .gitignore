@@ -101,3 +101,5 @@ ENV/
 .mypy_cache/
 
 .idea/*
+
+tensorflow-serving/mnist_example/output/*
