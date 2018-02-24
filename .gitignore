@@ -101,4 +101,7 @@ ENV/
 .mypy_cache/
 
 .idea/*
+
 scratch.py
+
+tensorflow-serving/mnist_example/output/*

@@ -8,6 +8,7 @@ RUN curl https://storage.googleapis.com/tensorflow-serving-apt/tensorflow-servin
 RUN apt-get update && apt-get install tensorflow-model-server
 
 
+
 WORKDIR /
 
 CMD ["/bin/bash"]

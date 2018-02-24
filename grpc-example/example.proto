@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+service ChessProp {
+
+  // A Bidirectional streaming RPC.
+  // Client sends a chess move
+  // server replies back with the opponent's move and judgement of the position
+  rpc PointCounterpoint(stream Move) returns (stream ReplyWithJudgement) {}
+
+}
+
+
+message Move {
+    string piece =1;
+    string file = 2;
+    uint32 rank = 3;
+}
+
+message ReplyWithJudgement {
+    Move reply = 1;
+    double judgement = 2;
+}
+
