@@ -108,3 +108,5 @@ tensorflow-serving/mnist_example/output/*
 test.png
 lines.html
 gan_toy/tests/random_images.html
+resources/bokeh_tmp/*
+resources/matplotlib_tmp/*
