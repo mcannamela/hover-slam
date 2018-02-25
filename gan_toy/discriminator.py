@@ -1,4 +1,4 @@
-from keras import models, layers
+from tensorflow.python.keras import models, layers
 
 
 def build_mlp_discriminator(input_shape, hidden_units, hidden_layers=3, dropout=.2):

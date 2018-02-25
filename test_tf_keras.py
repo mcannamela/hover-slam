@@ -1,6 +1,6 @@
-from keras.models import Sequential
-from keras.layers import Dense
-from keras import regularizers, optimizers
+from tensorflow.python.keras.models import Sequential
+from tensorflow.python.keras.layers import Dense
+from tensorflow.python.keras import regularizers, optimizers
 import numpy as np
 from bokeh import plotting as plt
 import os

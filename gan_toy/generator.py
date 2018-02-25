@@ -1,4 +1,4 @@
-from keras import models, layers
+from tensorflow.python.keras import models, layers
 import numpy as np
 
 
