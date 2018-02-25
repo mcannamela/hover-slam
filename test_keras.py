@@ -7,11 +7,11 @@ import os
 
 model = Sequential()
 reg = 1e-5
-model.add(Dense(units=32, activation='relu', input_dim=1,
+model.add(Dense(units=32, activation='relu', input_shape=(1,),
                 kernel_regularizer=regularizers.l2(reg),
                 activity_regularizer=regularizers.l2(reg)
                 ))
-model.add(Dense(units=32, activation='relu', input_dim=1,
+model.add(Dense(units=32, activation='relu',
                 kernel_regularizer=regularizers.l2(reg),
                 activity_regularizer=regularizers.l2(reg)
                 ))
