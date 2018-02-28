@@ -1,10 +1,11 @@
 import numpy as np
 
+from gan_toy.circle_generator import build_circle_generator
 from gan_toy.discriminator import build_mlp_discriminator
 from gan_toy.gan import build_gan
 from gan_toy.generator import build_mlp_generator
 from tensorflow.python.keras import optimizers
-
+import tensorflow as tf
 
 def weighted_mean_loss(y_true, y_pred):
     # wasserstein gan maximizes the difference between the expectation of the
@@ -103,3 +104,42 @@ class Trainer(object):
         self.discriminator.trainable = False
         self.gan.train_on_batch(self.sample_noise(samples_per_epoch), -np.ones(samples_per_epoch))
         self.discriminator.trainable = True
+
+
+if __name__ == '__main__':
+    image_shape = (64, 64)
+    n_noise_dims = 4
+    n_d_units = 128
+    n_g_units = 128
+    n_hidden_d_layers = 3
+    n_hidden_g_layers = 2
+
+    t = Trainer(
+        image_shape,
+        n_noise_dims,
+        n_d_units,
+        n_g_units,
+        n_hidden_d_layers,
+        n_hidden_g_layers,
+    )
+
+    batch_size = 32
+    shape = [batch_size, 1, 1]
+    with tf.session() as sess:
+        x = tf.linspace(-1, 1, image_shape[1])
+        y = tf.linspace(-1, 1, image_shape[1])
+
+        h = tf.random_uniform(shape=shape, minval=-.8, maxval=.8)
+        k = tf.random_uniform(shape=shape, minval=-.8, maxval=.8)
+        r = tf.random_uniform(shape=shape, minval=.12, maxval=.7)
+        a = tf.random_uniform(shape=shape, minval=.5, maxval=1.5)
+
+        circle_generator = build_circle_generator(x, y, h, k, r, a)
+
+        t.train(
+            circle_generator,
+            sess,
+            n_epochs=10,
+            batch_size=batch_size,
+            samples_per_epoch=10000
+        )

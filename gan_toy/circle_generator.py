@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-def build_true_generator(x, y, h, k, r, a):
+def build_circle_generator(x, y, h, k, r, a):
 
     if x.shape.ndims != 1:
         raise RuntimeError("x must have rank 1")

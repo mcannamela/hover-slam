@@ -2,7 +2,7 @@ import unittest
 import tensorflow as tf
 import numpy as np
 
-from gan_toy.circle_generator import build_true_generator
+from gan_toy.circle_generator import build_circle_generator
 import bokeh.plotting as plt
 import os
 
@@ -38,7 +38,7 @@ class TestTrueGenerator(tf.test.TestCase, unittest.TestCase):
 
     def test_generator(self):
         with self.test_session():
-            generator = build_true_generator(self.x, self.y, self.h, self.k, self.r, self.a)
+            generator = build_circle_generator(self.x, self.y, self.h, self.k, self.r, self.a)
             im = generator.eval()
             self.assertAllClose(self.exp_image, im)
 
@@ -57,7 +57,7 @@ class TestTrueGenerator(tf.test.TestCase, unittest.TestCase):
             r = tf.random_uniform(shape=[1], minval=.12, maxval=.7)
             a = tf.random_uniform(shape=[1], minval=.5, maxval=1.5)
 
-            generator = build_true_generator(self.x, self.y, h, k, r, a)
+            generator = build_circle_generator(self.x, self.y, h, k, r, a)
 
             if self._MAKE_PLOTS:
                 ims = np.concatenate([np.concatenate([generator.eval() for i in range(10)], axis=1) for j in range(10)],
@@ -76,7 +76,7 @@ class TestTrueGenerator(tf.test.TestCase, unittest.TestCase):
             r = tf.random_uniform(shape=shape, minval=.12, maxval=.7)
             a = tf.random_uniform(shape=shape, minval=.5, maxval=1.5)
 
-            generator = build_true_generator(self.x, self.y, h, k, r, a)
+            generator = build_circle_generator(self.x, self.y, h, k, r, a)
             im_batch = generator.eval()
 
             if self._MAKE_PLOTS:
