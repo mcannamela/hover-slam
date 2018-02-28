@@ -3,6 +3,16 @@ import numpy as np
 from gan_toy.discriminator import build_mlp_discriminator
 from gan_toy.gan import build_gan
 from gan_toy.generator import build_mlp_generator
+from tensorflow.python.keras import optimizers
+
+
+def weighted_mean_loss(y_true, y_pred):
+    # wasserstein gan maximizes the difference between the expectation of the
+    # discriminator function values
+    # wrt the real and generated distributions
+    # here y_pred is expected to be all ones or all negative ones
+    # keras does the mean over the batch for us, so we just need to multiply
+    return y_true*y_pred
 
 
 class Trainer(object):
@@ -39,6 +49,8 @@ class Trainer(object):
         self.n_critic = n_critic
 
     def train(self, circle_generator, circle_generator_session, n_epochs=10, batch_size=32, samples_per_epoch=10000):
+        self._compile_models()
+
         for epoch in range(n_epochs):
             for i in range(samples_per_epoch//batch_size):
                 for j in range(self.n_critic):
@@ -46,6 +58,26 @@ class Trainer(object):
                     fake = self.generator.predict(self.sample_noise(batch_size))
                     self._update_discriminator(real, fake)
                 self._update_generator(batch_size)
+
+    def _compile_models(self):
+        self._compile_generator()
+        self._compile_discriminator()
+        self._compile_gan()
+
+    def _compile_generator(self):
+        gan_optimizer = optimizers.RMSprop()
+        self.generator.compile(loss='mse', optimizer=gan_optimizer)
+        return gan_optimizer
+
+    def _compile_discriminator(self):
+        discriminator_optimizer = None
+        self.discriminator.compile(loss=weighted_mean_loss, optimizer=discriminator_optimizer)
+
+    def _compile_gan(self):
+        gan_optimizer = optimizers.RMSprop
+        self.discriminator.trainable = False
+        self.gan.compile(loss=weighted_mean_loss, optimizer=gan_optimizer)
+        self.discriminator.trainable = True
 
     def sample_noise(self, n_samples):
         return np.random.random((n_samples, self.n_noise_dims))
