@@ -4,12 +4,12 @@ from ray.rllib import Policy
 import numpy as np
 from ray_scratch.rock_paper_scissors.my_rock_paper_scissors import MyRockPaperScissors
 
+
 class OnlyRock(Policy):
     """Pick a random move and stick with it for the entire episode."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
 
     def compute_actions(self,
                         obs_batch,
@@ -29,6 +29,7 @@ class OnlyRock(Policy):
 
     def set_weights(self, weights):
         pass
+
 
 class MyAlwaysSameHeuristic(Policy):
     """Pick a random move and stick with it for the entire episode."""
@@ -99,6 +100,7 @@ class MyBeatLastHeuristic(Policy):
     def set_weights(self, weights):
         pass
 
+
 class MixedRPS(Policy):
     """Draw at random with fixed weights
 
@@ -111,8 +113,8 @@ class MixedRPS(Policy):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._probs = np.array([0,0,1], dtype=np.float32)
-        self._choices = np.array([0,1,2])
+        self._probs = np.array([0, 0, 1], dtype=np.float32)
+        self._choices = np.array([0, 1, 2])
         self._learning_rate = .1
 
     def compute_actions(self,
@@ -131,20 +133,18 @@ class MixedRPS(Policy):
                 print(self._probs)
                 raise
 
-
         return [choose(x) for x in obs_batch], [], {}
 
     def learn_on_batch(self, samples):
         played_probs = np.mean(samples.data[samples.OBS], axis=0)
         win_probs = np.roll(played_probs, shift=1)
         update_direction = win_probs - self._probs
-        self._probs = np.clip(self._probs + self._learning_rate*update_direction, 0, None)
+        self._probs = np.clip(self._probs + self._learning_rate * update_direction, 0, None)
         self._probs = self._probs / np.sum(self._probs)
 
         print(self._probs)
         print(win_probs)
         print('    ', self._learning_rate * update_direction)
-
 
     def get_weights(self):
         return self._probs

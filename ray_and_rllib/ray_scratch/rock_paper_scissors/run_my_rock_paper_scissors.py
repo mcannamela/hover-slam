@@ -1,10 +1,8 @@
 """A simple multi-agent env with two agents playing rock paper scissors.
 
-This demonstrates running the following policies in competition:
-    (1) heuristic policy of repeating the same move
-    (2) heuristic policy of beating the last opponent move
-    (3) LSTM/feedforward PG policies
-    (4) LSTM policy with custom entropy loss
+This demonstrates running variously heuristic, non-updated policies vs neural net PG policies vs learned heuristics.
+
+
 """
 
 import argparse
