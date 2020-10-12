@@ -17,7 +17,7 @@ from ray.rllib.models import ModelCatalog
 from ray.rllib.utils.framework import try_import_tf, try_import_torch
 from ray.rllib.utils.test_utils import check_learning_achieved
 
-from ray_scratch.rock_paper_scissors.policies import MyAlwaysSameHeuristic, MyBeatLastHeuristic
+from ray_scratch.rock_paper_scissors.policies import MyAlwaysSameHeuristic, MyBeatLastHeuristic, MixedRPS, OnlyRock
 from ray_scratch.rock_paper_scissors.tf_model import MyFastModel, MyFastEagerModel
 
 tf1, tf, tfv = try_import_tf()
@@ -26,7 +26,7 @@ torch, _ = try_import_torch()
 parser = argparse.ArgumentParser()
 parser.add_argument("--torch", action="store_true")
 parser.add_argument("--as-test", action="store_true")
-parser.add_argument("--stop-iters", type=int, default=60)
+parser.add_argument("--stop-iters", type=int, default=120)
 parser.add_argument("--stop-reward", type=float, default=1000.0)
 parser.add_argument("--stop-timesteps", type=int, default=100000)
 
@@ -57,26 +57,29 @@ def run_heuristic_vs_learned(args, use_lstm=False, trainer="PG"):
     """
 
     def select_policy(agent_id):
+        # return 'mixed_rps'
         # return {
         #     'player1': 'always_same',
         #     'player2': 'beat_last'
         # }[agent_id]
         if agent_id == "player1":
-            return "learned"
+            return "mixed_rps"
         else:
-            return random.choice(["always_same", "beat_last"])
+            return 'only_rock'#random.choice(["always_same", "beat_last"])
 
     rps_space = Discrete(3)
 
     ModelCatalog.register_custom_model("my_fast_model", MyFastModel)
     ModelCatalog.register_custom_model("my_fast_eager_model", MyFastEagerModel)
 
+
+
     config = {
         "env": RockPaperScissors,
         "gamma": 0.9,
         "num_workers": 0,
         "num_envs_per_worker": 4,
-        "rollout_fragment_length": 10,
+        "rollout_fragment_length": 30,
         "train_batch_size": 200,
         "multiagent": {
             # "policies_to_train": ["learned"],
@@ -84,6 +87,8 @@ def run_heuristic_vs_learned(args, use_lstm=False, trainer="PG"):
                 "always_same": (MyAlwaysSameHeuristic, rps_space, rps_space,
                                 {}),
                 "beat_last": (MyBeatLastHeuristic, rps_space, rps_space, {}),
+                "only_rock": (OnlyRock, rps_space, rps_space, {}),
+                "mixed_rps": (MixedRPS, rps_space, rps_space, {}),
                 "learned": (None, Discrete(3), Discrete(3), {
                     "model": {
                         "custom_model": 'my_fast_model'
