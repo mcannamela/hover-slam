@@ -3,7 +3,7 @@ import tensorflow as tf
 from ray.rllib import Policy
 import numpy as np
 from ray_scratch.rock_paper_scissors.my_rock_paper_scissors import MyRockPaperScissors
-
+from scipy.special import softmax, logit
 
 class OnlyRock(Policy):
     """Pick a random move and stick with it for the entire episode."""
@@ -113,7 +113,7 @@ class MixedRPS(Policy):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._probs = np.array([0, 0, 1], dtype=np.float32)
+        self._logits = np.array([-10, -10, 10], dtype=np.float32)
         self._choices = np.array([0, 1, 2])
         self._learning_rate = .1
 
@@ -128,26 +128,33 @@ class MixedRPS(Policy):
 
         def choose(x):
             try:
-                return np.random.choice(self._choices, p=self._probs)
+                return np.random.choice(self._choices, p=softmax(self._logits))
             except ValueError:
-                print(self._probs)
+                print(self._logits)
                 raise
 
         return [choose(x) for x in obs_batch], [], {}
 
     def learn_on_batch(self, samples):
-        played_probs = np.mean(samples.data[samples.OBS], axis=0)
-        win_probs = np.roll(played_probs, shift=1)
-        update_direction = win_probs - self._probs
-        self._probs = np.clip(self._probs + self._learning_rate * update_direction, 0, None)
-        self._probs = self._probs / np.sum(self._probs)
+        obs_probs = np.mean(samples.data[samples.OBS], axis=0)
+        # print('obs:', obs_probs)
+        # print('bef:', softmax(self._logits))
+        win_probs = np.roll(obs_probs, shift=1)
+        win_logits = np.clip(logit(win_probs), -20, 20)
+        update_direction = win_logits - self._logits
+        self._logits = self._logits + self._learning_rate*update_direction
 
-        print(self._probs)
-        print(win_probs)
-        print('    ', self._learning_rate * update_direction)
+        # print(obs_probs)
+        print('aft:',softmax(self._logits),'\n')
+        # print('log:',self._logits)
+        # print('dir:', update_direction)
+        # print(self._probs)
+        # print(win_probs)
+
+        # print('    ', self._learning_rate * update_direction)
 
     def get_weights(self):
-        return self._probs
+        return self._logits
 
     def set_weights(self, weights):
-        self._probs = weights
+        self._logits = weights

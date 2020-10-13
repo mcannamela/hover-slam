@@ -45,20 +45,15 @@ def run_same_policy(args, stop):
         check_learning_achieved(results, 0.0)
 
 
-def run_heuristic_vs_learned(args, use_lstm=False, trainer="PG"):
+def run_heuristic_vs_learned(args, trainer="PG"):
     """Run heuristic policies vs a learned agent.
-
-    The learned agent should eventually reach a reward of ~5 with
-    use_lstm=False, and ~7 with use_lstm=True. The reason the LSTM policy
-    can perform better is since it can distinguish between the always_same vs
-    beat_last heuristics.
     """
 
     def select_policy(agent_id):
         # return 'mixed_rps'
         # return {
-        #     'player1': 'always_same',
-        #     'player2': 'beat_last'
+        #     'player1': 'mixed_rps',
+        #     'player2': 'other_mixed_rps'
         # }[agent_id]
         if agent_id == "player1":
             return "mixed_rps"
@@ -87,7 +82,8 @@ def run_heuristic_vs_learned(args, use_lstm=False, trainer="PG"):
                 "beat_last": (MyBeatLastHeuristic, rps_space, rps_space, {}),
                 "only_rock": (OnlyRock, rps_space, rps_space, {}),
                 "mixed_rps": (MixedRPS, rps_space, rps_space, {}),
-                "learned": (None, Discrete(3), Discrete(3), {
+                "other_mixed_rps": (MixedRPS, rps_space, rps_space, {}),
+                "learned": (None, rps_space, rps_space, {
                     "model": {
                         "custom_model": 'my_fast_model'
                     },
