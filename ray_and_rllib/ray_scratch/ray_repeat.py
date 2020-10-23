@@ -7,6 +7,7 @@ from ray.rllib.agents.registry import get_agent_class
 from ray.rllib.agents.trainer_template import build_trainer
 from ray.rllib.examples.policy.random_policy import RandomPolicy
 from ray.rllib.tests.test_rollout_worker import MockPolicy
+from ray.rllib.utils.spaces.repeated import Repeated
 from ray.tune.registry import register_env
 from ray.rllib.examples.env.nested_space_repeat_after_me_env import \
     NestedSpaceRepeatAfterMeEnv
@@ -42,7 +43,7 @@ if __name__ == "__main__":
                         "e": Discrete(2)
                     })]),
                 "b": Box(-10.0, 10.0, (2, )),
-                "c": Discrete(4)
+                "c": Repeated(Discrete(4), 7)
             }),
         },
         # "entropy_coeff": 0.00005,  # We don't want high entropy in this Env.
