@@ -43,7 +43,7 @@ if __name__ == "__main__":
                         "e": Discrete(2)
                     })]),
                 "b": Box(-10.0, 10.0, (2, )),
-                "c": Repeated(Discrete(4), 7)
+                # "c": Repeated(Discrete(4), 7)
             }),
         },
         # "entropy_coeff": 0.00005,  # We don't want high entropy in this Env.
