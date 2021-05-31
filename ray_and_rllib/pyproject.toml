@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "ray_scratch"
+version = "0.1.0"
+description = "Scratching with ray."
+authors = ["Michael Cannamela <m.cannamela@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.9"
+torch = "^1.8.1"
+pyro-ppl = "^1.6.0"
+scipy = "^1.6.3"
+hypothesis = "^6.13.10"
+pytest = "^6.2.4"
+matplotlib = "^3.4.2"
+mypy = "^0.812"
+ray = {extras = ["rllib", "tune"], version = "*"}
+
+## see https://github.com/python-poetry/poetry/issues/2318
+#opencv-python-headless = "==3.4.14.51,<4.3.0.36"
+
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
