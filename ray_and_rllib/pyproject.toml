@@ -13,7 +13,7 @@ hypothesis = "^6.13.10"
 pytest = "^6.2.4"
 matplotlib = "^3.4.2"
 mypy = "^0.812"
-ray = {extras = ["rllib", "tune"], version = "*"}
+ray = {extras = ["rllib", "tune", "debug"], version = "*"}
 
 ## see https://github.com/python-poetry/poetry/issues/2318
 #opencv-python-headless = "==3.4.14.51,<4.3.0.36"
