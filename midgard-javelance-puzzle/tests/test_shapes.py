@@ -779,15 +779,37 @@ def test_vertical_box():
     # Should have 2*3 = 6 nodes
     assert len(shape.nodes) == 6
 
-    # For vertical_box, rows are offset by (-i, i)
-    # Row 0: (0,0), (1,0)
-    # Row 1: (-1,1), (0,1)
-    # Row 2: (-2,2), (-1,2)
-    expected_nodes = {(0, 0), (1, 0), (-1, 1), (0, 1), (-2, 2), (-1, 2)}
+    # For vertical_box, rows are offset by (-i//2, i)
+    # Row 0 (i=0): offset (-0//2, 0) = (0, 0) → nodes at (0,0), (1,0)
+    # Row 1 (i=1): offset (-1//2, 1) = (0, 1) → nodes at (0,1), (1,1)
+    # Row 2 (i=2): offset (-2//2, 2) = (-1, 2) → nodes at (-1,2), (0,2)
+    expected_nodes = {(0, 0), (1, 0), (0, 1), (1, 1), (-1, 2), (0, 2)}
     assert set(map(tuple, shape.nodes)) == expected_nodes
 
     # Should have no edges
     assert len(shape.edges) == 0
+
+
+def test_vertical_box_offset_pattern():
+    """Test that vertical_box has the correct horizontal offset pattern for vertical stacking."""
+    # Create a taller vertical box to verify the offset pattern
+    shape = Shape.vertical_box(width=3, height=4, mean_color="rgb(150, 150, 150)")
+
+    # Should have 3*4 = 12 nodes
+    assert len(shape.nodes) == 12
+
+    # For vertical_box with width=3, height=4:
+    # Row 0 (i=0): offset (-0//2, 0) = (0, 0) → nodes at (0,0), (1,0), (2,0)
+    # Row 1 (i=1): offset (-1//2, 1) = (0, 1) → nodes at (0,1), (1,1), (2,1)
+    # Row 2 (i=2): offset (-2//2, 2) = (-1, 2) → nodes at (-1,2), (0,2), (1,2)
+    # Row 3 (i=3): offset (-3//2, 3) = (-1, 3) → nodes at (-1,3), (0,3), (1,3)
+    expected_nodes = {
+        (0, 0), (1, 0), (2, 0),
+        (0, 1), (1, 1), (2, 1),
+        (-1, 2), (0, 2), (1, 2),
+        (-1, 3), (0, 3), (1, 3),
+    }
+    assert set(map(tuple, shape.nodes)) == expected_nodes
 
 
 def test_node_set():

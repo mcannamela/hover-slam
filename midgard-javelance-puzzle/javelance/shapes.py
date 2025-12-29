@@ -59,7 +59,7 @@ class Shape:
         rows = []
         for i in range(height):
             vertical_offset = i
-            horzontal_offset = -i
+            horzontal_offset = -(i // 2)
             offset = np.array([horzontal_offset, vertical_offset], dtype=int)
             rows.append(row_nodes + offset)
         nodes = np.concatenate(rows, axis=0)
