@@ -977,5 +977,239 @@ def test_roundtrip_sets_conversion():
     assert reconstructed.mean_color == original.mean_color
 
 
+def test_adjacent_nodes_single_node():
+    """Test that adjacent_nodes returns all 6 adjacent hexes for a single node."""
+    nodes = np.array([[0, 0]])
+    adjacent = Shape.adjacent_nodes(nodes)
+
+    # Should have 6 adjacent nodes
+    assert len(adjacent) == 6
+
+    # Should include all valid adjacency offsets from (0,0)
+    expected = {(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)}
+    assert set(map(tuple, adjacent)) == expected
+
+
+def test_adjacent_nodes_multiple_nodes():
+    """Test that adjacent_nodes returns all adjacent hexes for multiple nodes."""
+    nodes = np.array([[0, 0], [1, 0]])
+    adjacent = Shape.adjacent_nodes(nodes)
+
+    # Should have 12 nodes (6 for each input node)
+    assert len(adjacent) == 12
+
+    # For (0,0): (1,0), (-1,0), (0,1), (0,-1), (1,-1), (-1,1)
+    # For (1,0): (2,0), (0,0), (1,1), (1,-1), (2,-1), (0,1)
+    expected = {
+        (1, 0),
+        (-1, 0),
+        (0, 1),
+        (0, -1),
+        (1, -1),
+        (-1, 1),
+        (2, 0),
+        (0, 0),
+        (1, 1),
+        (0, 1),
+        (2, -1),
+    }
+    assert set(map(tuple, adjacent)) == expected
+
+
+def test_adjacent_nodes_empty():
+    """Test that adjacent_nodes handles empty input."""
+    nodes = np.empty((0, 2), dtype=int)
+    adjacent = Shape.adjacent_nodes(nodes)
+
+    assert len(adjacent) == 0
+    assert adjacent.shape == (0, 2)
+
+
+def test_adjacent():
+    """Test that adjacent() returns a Shape with all adjacent nodes."""
+    nodes = np.array([[0, 0]])
+    edges = np.empty((0, 2, 2), dtype=int)
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(100, 100, 100)")
+
+    adjacent_shape = shape.adjacent()
+
+    # Should have 6 adjacent nodes
+    assert len(adjacent_shape.nodes) == 6
+
+    # Should have the correct adjacent nodes
+    expected_nodes = {(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)}
+    assert set(map(tuple, adjacent_shape.nodes)) == expected_nodes
+
+    # Should have no edges
+    assert len(adjacent_shape.edges) == 0
+
+    # Should preserve color
+    assert adjacent_shape.mean_color == "rgb(100, 100, 100)"
+
+
+def test_adjacent_multiple_nodes():
+    """Test adjacent() with multiple nodes removes duplicates."""
+    # Two adjacent hexes
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    adjacent_shape = shape.adjacent()
+
+    # Adjacent nodes should include neighbors of both, with duplicates removed
+    # From (0,0): (1,0), (-1,0), (0,1), (0,-1), (1,-1), (-1,1)
+    # From (1,0): (2,0), (0,0), (1,1), (1,-1), (2,-1), (0,1)
+    # Combined unique: (-1,0), (-1,1), (0,-1), (0,0), (0,1), (1,-1), (1,0), (1,1), (2,-1), (2,0)
+    expected = {
+        (-1, 0),
+        (-1, 1),
+        (0, -1),
+        (0, 0),
+        (0, 1),
+        (1, -1),
+        (1, 0),
+        (1, 1),
+        (2, -1),
+        (2, 0),
+    }
+    assert set(map(tuple, adjacent_shape.nodes)) == expected
+
+
+def test_as_node_set():
+    """Test that as_node_set converts nodes array to set."""
+    nodes = np.array([[1, 2], [3, 4], [5, 6]])
+    node_set = Shape.as_node_set(nodes)
+
+    assert isinstance(node_set, set)
+    assert node_set == {(1, 2), (3, 4), (5, 6)}
+
+
+def test_as_node_set_empty():
+    """Test that as_node_set handles empty arrays."""
+    nodes = np.empty((0, 2), dtype=int)
+    node_set = Shape.as_node_set(nodes)
+
+    assert node_set == set()
+
+
+def test_as_edge_set():
+    """Test that as_edge_set converts edges array to normalized set."""
+    edges = np.array([[[0, 0], [1, 0]], [[2, 0], [1, 0]]])
+    edge_set = Shape.as_edge_set(edges)
+
+    assert isinstance(edge_set, set)
+    # Edges should be normalized
+    assert edge_set == {((0, 0), (1, 0)), ((1, 0), (2, 0))}
+
+
+def test_as_edge_set_normalizes():
+    """Test that as_edge_set normalizes edges."""
+    edges = np.array([[[1, 0], [0, 0]]])
+    edge_set = Shape.as_edge_set(edges)
+
+    # Should be normalized to ((0,0), (1,0))
+    assert edge_set == {((0, 0), (1, 0))}
+
+
+def test_as_edge_set_empty():
+    """Test that as_edge_set handles empty arrays."""
+    edges = np.empty((0, 2, 2), dtype=int)
+    edge_set = Shape.as_edge_set(edges)
+
+    assert edge_set == set()
+
+
+def test_edges_full_simple():
+    """Test that edges_full returns all valid edges for a simple shape."""
+    # Three nodes in a line: (0,0) - (1,0) - (2,0)
+    nodes = np.array([[0, 0], [1, 0], [2, 0]])
+    edges = np.empty((0, 2, 2), dtype=int)
+    shape = Shape(nodes=nodes, edges=edges)
+
+    full_edges = shape.edges_full()
+
+    # Should have edges between adjacent hexes
+    expected = {((0, 0), (1, 0)), ((1, 0), (2, 0))}
+    assert full_edges == expected
+
+
+def test_edges_full_square():
+    """Test edges_full on a 2x2 box."""
+    # Create a 2x2 box
+    shape = Shape.box(width=2, height=2)
+
+    full_edges = shape.edges_full()
+
+    # A 2x2 box has nodes: (0,0), (1,0), (0,1), (1,1)
+    # Valid adjacencies in pointy-top hex grid:
+    # (0,0) - (1,0): offset (1,0)
+    # (0,0) - (0,1): offset (0,1)
+    # (1,0) - (1,1): offset (0,1)
+    # (1,0) - (0,1): offset (-1,1)
+    # (0,1) - (1,1): offset (1,0)
+    expected = {
+        ((0, 0), (1, 0)),
+        ((0, 0), (0, 1)),
+        ((1, 0), (1, 1)),
+        ((0, 1), (1, 0)),
+        ((0, 1), (1, 1)),
+    }
+    assert full_edges == expected
+
+
+def test_edges_full_isolated_nodes():
+    """Test edges_full with isolated nodes."""
+    # Two nodes that are not adjacent
+    nodes = np.array([[0, 0], [5, 5]])
+    edges = np.empty((0, 2, 2), dtype=int)
+    shape = Shape(nodes=nodes, edges=edges)
+
+    full_edges = shape.edges_full()
+
+    # No edges since nodes are not adjacent
+    assert full_edges == set()
+
+
+def test_edges_full_single_node():
+    """Test edges_full with a single node."""
+    nodes = np.array([[0, 0]])
+    edges = np.empty((0, 2, 2), dtype=int)
+    shape = Shape(nodes=nodes, edges=edges)
+
+    full_edges = shape.edges_full()
+
+    # No edges for a single node
+    assert full_edges == set()
+
+
+def test_plot_javelance():
+    """Visual test: Plot JAVELANCE_PROTO and JAVELANCE shapes."""
+    from javelance.shapes import JAVELANCE_PROTO, JAVELANCE
+
+    # Create a grid large enough for both shapes
+    fig = plot_hex_grid(50, 25)
+
+    # Plot JAVELANCE_PROTO on the left
+    plot_shape(
+        fig,
+        JAVELANCE_PROTO.nodes,
+        JAVELANCE_PROTO.edges,
+        node_color=JAVELANCE_PROTO.mean_color,
+        edge_color=JAVELANCE_PROTO.mean_color,
+    )
+
+    # Plot JAVELANCE on the right (offset by 25 in x direction)
+    javelance_offset = JAVELANCE.translate(np.array([25, 0]))
+    plot_shape(
+        fig,
+        javelance_offset.nodes,
+        javelance_offset.edges,
+        node_color=javelance_offset.mean_color,
+        edge_color=javelance_offset.mean_color,
+    )
+
+    fig.show()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -16,6 +16,9 @@ ROTATION_MATRICES = [
     np.array([[1, 1], [-1, 0]]),  # 300°
 ]
 
+ADJACENCY_OFFSETS = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
+ADJACENCY_OFFSETS_ARRAY = np.array(ADJACENCY_OFFSETS, dtype=int)
+
 
 @dataclass
 class Shape:
@@ -27,10 +30,31 @@ class Shape:
     Edge = tuple[Node, Node]
 
     @classmethod
+    def adjacent_nodes(cls, nodes: np.ndarray) -> np.ndarray:
+        """Return the adjacent nodes of the given nodes"""
+        # add singleton dimensions as needed to `nodes` and `ADJACENCY_OFFSETS_ARRAY`, then add the two
+        # finally, reshape to obtain a valid array of nodes that is n_adjacent x 2
+        # nodes shape: (N, 2) -> (N, 1, 2)
+        # ADJACENCY_OFFSETS_ARRAY shape: (6, 2) -> (1, 6, 2)
+        # Broadcasting gives: (N, 6, 2)
+        # Reshape to: (N*6, 2)
+        if len(nodes) == 0:
+            return np.empty((0, 2), dtype=int)
+
+        nodes_expanded = nodes[:, np.newaxis, :]  # (N, 1, 2)
+        offsets_expanded = ADJACENCY_OFFSETS_ARRAY[np.newaxis, :, :]  # (1, 6, 2)
+        adjacent = nodes_expanded + offsets_expanded  # (N, 6, 2)
+        return adjacent.reshape(-1, 2)  # (N*6, 2)
+
+    @classmethod
     def vertical_box(cls, width: int, height: int, mean_color: str = None) -> Self:
         row_shape = (width, 1)
         row_nodes = np.concatenate(
-            [np.arange(width, dtype=int)[:, np.newaxis], np.zeros(row_shape, dtype=int)], axis=1
+            [
+                np.arange(width, dtype=int)[:, np.newaxis],
+                np.zeros(row_shape, dtype=int),
+            ],
+            axis=1,
         )
         rows = []
         for i in range(height):
@@ -45,7 +69,11 @@ class Shape:
     def box(cls, width: int, height: int, mean_color: str = None) -> Self:
         row_shape = (width, 1)
         row_nodes = np.concatenate(
-            [np.arange(width, dtype=int)[:, np.newaxis], np.zeros(row_shape, dtype=int)], axis=1
+            [
+                np.arange(width, dtype=int)[:, np.newaxis],
+                np.zeros(row_shape, dtype=int),
+            ],
+            axis=1,
         )
         rows = []
         for i in range(height):
@@ -57,7 +85,7 @@ class Shape:
         return cls(nodes=nodes, edges=Shape.empty_edges(), mean_color=mean_color)
 
     @classmethod
-    def empty_edges(cls) -> ndarray[tuple[int, int, int], dtype[Any]]:
+    def empty_edges(cls) -> ndarray[tuple[int, int, int], dtype[int]]:
         return np.empty((0, 2, 2), dtype=int)
 
     @classmethod
@@ -89,6 +117,18 @@ class Shape:
 
         return cls(nodes=nodes_array, edges=edges_array, mean_color=mean_color)
 
+    def adjacent(self) -> Self:
+        """Return a Shape with all the adjacent nodes of this Shape's nodes but no edges"""
+        # Get all adjacent nodes (may have duplicates)
+        adjacent_nodes = self.adjacent_nodes(self.nodes)
+        # Convert to set to remove duplicates, then back to array
+        unique_nodes = np.array(sorted(set(map(tuple, adjacent_nodes))), dtype=int)
+        return self.__class__(
+            nodes=unique_nodes,
+            edges=Shape.empty_edges(),
+            mean_color=self.mean_color,
+        )
+
     def negative_nodes(self) -> Self:
         """Return a Shape with all the nodes in this Shape's bounding_box that are not in the Shape and no edges"""
         return self.bounding_box().difference(self)
@@ -108,13 +148,34 @@ class Shape:
         edges = self.edge_set() - other.edge_set()
         return Shape.from_sets(nodes=nodes, edges=edges, mean_color=self.mean_color)
 
+    @classmethod
+    def as_node_set(cls, nodes: np.ndarray) -> set[Node]:
+        return set(map(tuple, nodes))
+
+    @classmethod
+    def as_edge_set(cls, edges: np.ndarray) -> set[Edge]:
+        return set(cls.normalize_edge(edge) for edge in edges)
+
     def node_set(self) -> set[Node]:
         """This Shape's nodes as a set"""
-        return set(map(tuple, self.nodes))
+        return self.as_node_set(self.nodes)
 
     def edge_set(self) -> set[Edge]:
         """This Shape's edges as a set, normalized so that the nodes comprising the edge are ordered"""
-        return set(self.normalize_edge(edge) for edge in self.edges)
+        return self.as_edge_set(self.edges)
+
+    def edges_full(self) -> set[Edge]:
+        """Set of all valid edges that can be made from this shape's nodes"""
+        nodes = self.node_set()
+        adjacent_nodes = {
+            n: self.as_node_set(self.adjacent_nodes(np.array([n]))) & nodes for n in nodes
+        }
+        edges = set()
+        for n, adj in adjacent_nodes.items():
+            these_edges = {self.normalize_edge((n, a)) for a in adj}
+            edges |= these_edges
+
+        return edges
 
     def bounding_addresses(self) -> tuple[np.ndarray, np.ndarray]:
         """Return the hexes whose coordinates are the lower and upper bounds of all nodes in the shape"""
@@ -144,8 +205,12 @@ class Shape:
 
         # Check if edges are the same (as sets, order doesn't matter)
         # Normalize each edge by sorting its two hexes
-        self_edges_set = set(self.normalize_edge(edge) for edge in self_originated.edges)
-        other_edges_set = set(self.normalize_edge(edge) for edge in other_originated.edges)
+        self_edges_set = set(
+            self.normalize_edge(edge) for edge in self_originated.edges
+        )
+        other_edges_set = set(
+            self.normalize_edge(edge) for edge in other_originated.edges
+        )
 
         return self_edges_set == other_edges_set
 
@@ -494,3 +559,38 @@ SPROCKETS = [
         mean_color="orange",
     ),
 ]
+
+JAVELANCE_COLOR = "Bisque"
+JAVELANCE_VBOX = Shape.vertical_box(width=22, height=11, mean_color=JAVELANCE_COLOR)
+JAVELANCE_FORBIDDEN_NODES = {
+    (0, 0),
+    (1, 0),
+    (2, 0),
+    (3, 0),
+    (7, 0),
+    (8, 0),
+    (10, 0),
+    (11, 0),
+    (19, 0),
+    (20, 0),
+    (21, 0),
+    (-1, 1),
+    (-1, 0),
+    (-1, 1),
+    (-1, 2),
+    (-1, 7),
+}
+
+JAVELANCE_PROTO = JAVELANCE_VBOX.difference(
+    Shape.from_sets(nodes=JAVELANCE_FORBIDDEN_NODES, edges=set())
+)
+
+JAVELANCE_FORBIDDEN_EDGES = (
+    JAVELANCE_PROTO.adjacent().difference(JAVELANCE_PROTO).edges_full()
+)
+
+JAVELANCE = Shape.from_sets(
+    nodes=JAVELANCE_PROTO.node_set(),
+    edges=JAVELANCE_PROTO.edge_set() - JAVELANCE_FORBIDDEN_EDGES,
+    mean_color=JAVELANCE_COLOR,
+)
