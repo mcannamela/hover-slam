@@ -754,5 +754,228 @@ def test_plot_sprockets_rotations():
     fig.show()
 
 
+def test_box():
+    """Test that box creates a rectangular box of nodes."""
+    shape = Shape.box(width=3, height=2, mean_color="rgb(100, 100, 100)")
+
+    # Should have 3*2 = 6 nodes
+    assert len(shape.nodes) == 6
+
+    # Nodes should be at positions (0,0), (1,0), (2,0), (0,1), (1,1), (2,1)
+    expected_nodes = {(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1)}
+    assert set(map(tuple, shape.nodes)) == expected_nodes
+
+    # Should have no edges
+    assert len(shape.edges) == 0
+
+    # Should have correct color
+    assert shape.mean_color == "rgb(100, 100, 100)"
+
+
+def test_vertical_box():
+    """Test that vertical_box creates a vertically oriented box."""
+    shape = Shape.vertical_box(width=2, height=3, mean_color="rgb(150, 150, 150)")
+
+    # Should have 2*3 = 6 nodes
+    assert len(shape.nodes) == 6
+
+    # For vertical_box, rows are offset by (-i, i)
+    # Row 0: (0,0), (1,0)
+    # Row 1: (-1,1), (0,1)
+    # Row 2: (-2,2), (-1,2)
+    expected_nodes = {(0, 0), (1, 0), (-1, 1), (0, 1), (-2, 2), (-1, 2)}
+    assert set(map(tuple, shape.nodes)) == expected_nodes
+
+    # Should have no edges
+    assert len(shape.edges) == 0
+
+
+def test_node_set():
+    """Test that node_set returns nodes as a set of tuples."""
+    nodes = np.array([[1, 2], [3, 4], [5, 6]])
+    edges = np.empty((0, 2, 2), dtype=int)
+    shape = Shape(nodes=nodes, edges=edges)
+
+    node_set = shape.node_set()
+
+    assert isinstance(node_set, set)
+    assert node_set == {(1, 2), (3, 4), (5, 6)}
+
+
+def test_edge_set():
+    """Test that edge_set returns normalized edges as a set."""
+    nodes = np.array([[0, 0], [1, 0], [2, 0]])
+    edges = np.array([[[0, 0], [1, 0]], [[2, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    edge_set = shape.edge_set()
+
+    assert isinstance(edge_set, set)
+    # Edges should be normalized (nodes sorted)
+    assert edge_set == {((0, 0), (1, 0)), ((1, 0), (2, 0))}
+
+
+def test_edge_set_normalization():
+    """Test that edge_set normalizes edges by sorting nodes."""
+    nodes = np.array([[0, 0], [1, 0]])
+    # Create two edges that are the same but in different order
+    edges = np.array([[[1, 0], [0, 0]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    edge_set = shape.edge_set()
+
+    # Should be normalized to ((0, 0), (1, 0))
+    assert edge_set == {((0, 0), (1, 0))}
+
+
+def test_from_sets():
+    """Test that from_sets constructs a Shape from sets of nodes and edges."""
+    nodes_set = {(0, 0), (1, 0), (2, 0)}
+    edges_set = {((0, 0), (1, 0)), ((1, 0), (2, 0))}
+    shape = Shape.from_sets(
+        nodes=nodes_set, edges=edges_set, mean_color="rgb(200, 200, 200)"
+    )
+
+    # Should have correct nodes
+    assert set(map(tuple, shape.nodes)) == nodes_set
+
+    # Should have correct edges (normalized)
+    assert shape.edge_set() == edges_set
+
+    # Should have correct color
+    assert shape.mean_color == "rgb(200, 200, 200)"
+
+
+def test_from_sets_empty():
+    """Test that from_sets handles empty sets."""
+    shape = Shape.from_sets(nodes=set(), edges=set())
+
+    assert len(shape.nodes) == 0
+    assert len(shape.edges) == 0
+
+
+def test_from_sets_preserves_default_color():
+    """Test that from_sets uses default color when mean_color is None."""
+    nodes_set = {(0, 0)}
+    shape = Shape.from_sets(nodes=nodes_set, edges=set(), mean_color=None)
+
+    assert shape.mean_color == "rgb(128, 128, 128)"
+
+
+def test_bounding_box_method():
+    """Test that bounding_box returns a Shape covering the bounding addresses."""
+    nodes = np.array([[1, 2], [3, 4], [2, 3]])
+    edges = np.empty((0, 2, 2), dtype=int)
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(100, 150, 200)")
+
+    bbox = shape.bounding_box()
+
+    # Bounding box should cover from (1, 2) to (3, 4)
+    # That's a 3x3 box: width=3, height=3
+    expected_nodes = set()
+    for i in range(1, 4):
+        for j in range(2, 5):
+            expected_nodes.add((i, j))
+
+    assert set(map(tuple, bbox.nodes)) == expected_nodes
+    assert len(bbox.edges) == 0  # box() creates no edges
+    assert bbox.mean_color == "rgb(100, 150, 200)"
+
+
+def test_difference():
+    """Test that difference returns the set difference of two shapes."""
+    # Create two shapes with overlapping nodes
+    nodes1 = np.array([[0, 0], [1, 0], [2, 0], [3, 0]])
+    nodes2 = np.array([[1, 0], [2, 0]])
+    edges1 = np.array([[[0, 0], [1, 0]], [[1, 0], [2, 0]], [[2, 0], [3, 0]]])
+    edges2 = np.array([[[1, 0], [2, 0]]])
+
+    shape1 = Shape(nodes=nodes1, edges=edges1, mean_color="rgb(255, 0, 0)")
+    shape2 = Shape(nodes=nodes2, edges=edges2)
+
+    diff = shape1.difference(shape2)
+
+    # Should have nodes [0,0] and [3,0] (nodes in shape1 but not shape2)
+    assert diff.node_set() == {(0, 0), (3, 0)}
+
+    # Should have edges [[0,0],[1,0]] and [[2,0],[3,0]] (edges in shape1 but not shape2)
+    expected_edges = {((0, 0), (1, 0)), ((2, 0), (3, 0))}
+    assert diff.edge_set() == expected_edges
+
+    # Should preserve color from first shape
+    assert diff.mean_color == "rgb(255, 0, 0)"
+
+
+def test_difference_no_overlap():
+    """Test difference when shapes don't overlap."""
+    nodes1 = np.array([[0, 0], [1, 0]])
+    nodes2 = np.array([[5, 5], [6, 5]])
+    edges1 = np.array([[[0, 0], [1, 0]]])
+    edges2 = np.array([[[5, 5], [6, 5]]])
+
+    shape1 = Shape(nodes=nodes1, edges=edges1)
+    shape2 = Shape(nodes=nodes2, edges=edges2)
+
+    diff = shape1.difference(shape2)
+
+    # Should have all nodes from shape1
+    assert diff.node_set() == {(0, 0), (1, 0)}
+    assert diff.edge_set() == {((0, 0), (1, 0))}
+
+
+def test_negative_nodes():
+    """Test that negative_nodes returns nodes in bounding box but not in shape."""
+    # Create an L-shape
+    nodes = np.array([[0, 0], [1, 0], [0, 1]])
+    edges = np.array([[[0, 0], [1, 0]], [[0, 0], [0, 1]]])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(50, 100, 150)")
+
+    negative = shape.negative_nodes()
+
+    # Bounding box is 2x2 (from (0,0) to (1,1))
+    # Bounding box nodes: (0,0), (1,0), (0,1), (1,1)
+    # Shape nodes: (0,0), (1,0), (0,1)
+    # Negative nodes: (1,1)
+    assert negative.node_set() == {(1, 1)}
+
+    # Should have no edges (negative_nodes creates a shape with no edges)
+    assert len(negative.edges) == 0
+
+    # Should preserve color
+    assert negative.mean_color == "rgb(50, 100, 150)"
+
+
+def test_negative_nodes_full_box():
+    """Test negative_nodes when shape fills its bounding box."""
+    # Create a 2x2 box
+    shape = Shape.box(width=2, height=2, mean_color="rgb(100, 100, 100)")
+
+    negative = shape.negative_nodes()
+
+    # Should have no nodes (all nodes in bounding box are in the shape)
+    assert len(negative.nodes) == 0
+
+
+def test_roundtrip_sets_conversion():
+    """Test that converting to sets and back preserves the shape."""
+    nodes = np.array([[0, 0], [1, 0], [2, 0]])
+    edges = np.array([[[0, 0], [1, 0]], [[1, 0], [2, 0]]])
+    original = Shape(nodes=nodes, edges=edges, mean_color="rgb(123, 45, 67)")
+
+    # Convert to sets
+    node_set = original.node_set()
+    edge_set = original.edge_set()
+
+    # Convert back
+    reconstructed = Shape.from_sets(
+        nodes=node_set, edges=edge_set, mean_color=original.mean_color
+    )
+
+    # Should be equivalent
+    assert reconstructed.node_set() == original.node_set()
+    assert reconstructed.edge_set() == original.edge_set()
+    assert reconstructed.mean_color == original.mean_color
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

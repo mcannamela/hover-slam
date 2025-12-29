@@ -29,27 +29,31 @@ class Shape:
     @classmethod
     def vertical_box(cls, width: int, height: int, mean_color: str = None) -> Self:
         row_shape = (width, 1)
-        row_nodes = np.concat(
-            [np.arange(width)[:, np.newaxis], np.zeros(row_shape)], axis=1
+        row_nodes = np.concatenate(
+            [np.arange(width, dtype=int)[:, np.newaxis], np.zeros(row_shape, dtype=int)], axis=1
         )
         rows = []
         for i in range(height):
-            offset = np.array([-i, i])
+            offset = np.array([-i, i], dtype=int)
             rows.append(row_nodes + offset)
         nodes = np.concatenate(rows, axis=0)
+        if mean_color is None:
+            mean_color = "rgb(128, 128, 128)"
         return cls(nodes=nodes, edges=Shape.empty_edges(), mean_color=mean_color)
 
     @classmethod
     def box(cls, width: int, height: int, mean_color: str = None) -> Self:
         row_shape = (width, 1)
-        row_nodes = np.concat(
-            [np.arange(width)[:, np.newaxis], np.zeros(row_shape)], axis=1
+        row_nodes = np.concatenate(
+            [np.arange(width, dtype=int)[:, np.newaxis], np.zeros(row_shape, dtype=int)], axis=1
         )
         rows = []
         for i in range(height):
-            offset = np.array([0, i])
+            offset = np.array([0, i], dtype=int)
             rows.append(row_nodes + offset)
         nodes = np.concatenate(rows, axis=0)
+        if mean_color is None:
+            mean_color = "rgb(128, 128, 128)"
         return cls(nodes=nodes, edges=Shape.empty_edges(), mean_color=mean_color)
 
     @classmethod
@@ -61,7 +65,24 @@ class Shape:
         cls, nodes: set[Node], edges: set[Edge], mean_color: str = None
     ) -> Self:
         """Construct a Shape from sets of nodes and edges."""
-        raise NotImplementedError()
+        # Convert nodes set to numpy array
+        if len(nodes) > 0:
+            nodes_array = np.array(sorted(nodes), dtype=int)
+        else:
+            nodes_array = np.empty((0, 2), dtype=int)
+
+        # Convert edges set to numpy array
+        if len(edges) > 0:
+            edges_list = [np.array([list(edge[0]), list(edge[1])]) for edge in edges]
+            edges_array = np.array(edges_list, dtype=int)
+        else:
+            edges_array = cls.empty_edges()
+
+        # Use default color if None
+        if mean_color is None:
+            mean_color = "rgb(128, 128, 128)"
+
+        return cls(nodes=nodes_array, edges=edges_array, mean_color=mean_color)
 
     def negative_nodes(self) -> Self:
         """Return a Shape with all the nodes in this Shape's bounding_box that are not in the Shape and no edges"""
@@ -84,11 +105,14 @@ class Shape:
 
     def node_set(self) -> set[Node]:
         """This Shape's nodes as a set"""
-        raise NotImplementedError()
+        return set(map(tuple, self.nodes))
 
     def edge_set(self) -> set[Edge]:
         """This Shape's edges as a set, normalized so that the nodes comprising the edge are ordered"""
-        raise NotImplementedError()
+        def normalize_edge(edge):
+            return tuple(sorted([tuple(edge[0]), tuple(edge[1])]))
+
+        return set(normalize_edge(edge) for edge in self.edges)
 
     def bounding_addresses(self) -> tuple[np.ndarray, np.ndarray]:
         """Return the hexes whose coordinates are the lower and upper bounds of all nodes in the shape"""
