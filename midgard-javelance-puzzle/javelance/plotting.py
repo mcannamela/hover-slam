@@ -175,19 +175,30 @@ def plot_shape(fig, nodes, edges, hex_size=1.0, node_color='red', edge_color='bl
         # Get the shared edge vertices
         v1, v2 = _shared_edge_vertices(hex1, hex2, hex_size)
 
-        # Calculate center of the edge
-        edge_center = (v1 + v2) / 2
+        # Calculate edge vector
+        edge_vec = v2 - v1
 
-        # Calculate inward jitter direction (toward the midpoint between hex centers)
+        # Calculate perpendicular to edge (rotate 90 degrees)
+        # Two perpendiculars: (-dy, dx) and (dy, -dx)
+        perp1 = np.array([-edge_vec[1], edge_vec[0]])
+
+        # Normalize the perpendicular
+        perp1 = perp1 / np.linalg.norm(perp1)
+
+        # Determine which perpendicular points toward the interior
+        # (toward the midpoint between the two hex centers)
+        edge_center = (v1 + v2) / 2
         center1 = _hex_center(hex1[0], hex1[1], hex_size)
         center2 = _hex_center(hex2[0], hex2[1], hex_size)
         midpoint = (center1 + center2) / 2
 
-        # Jitter toward the interior (perpendicular to the edge, toward midpoint)
-        jitter_vec = midpoint - edge_center
-        jitter_distance = np.linalg.norm(jitter_vec)
-        if jitter_distance > 0:
-            jitter_vec = jitter_vec / jitter_distance * jitter * hex_size
+        # Choose the perpendicular direction that points toward the midpoint
+        to_midpoint = midpoint - edge_center
+        if np.dot(perp1, to_midpoint) < 0:
+            perp1 = -perp1
+
+        # Apply jitter orthogonal to the edge
+        jitter_vec = perp1 * jitter * hex_size
 
         # Apply jitter to edge vertices
         v1_jittered = v1 + jitter_vec
@@ -204,3 +215,57 @@ def plot_shape(fig, nodes, edges, hex_size=1.0, node_color='red', edge_color='bl
         ))
 
     return fig
+
+
+def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1):
+    """
+    Plot a small shape (4 nodes or fewer) on the hexagonal grid.
+    Color is determined by the number of nodes:
+    - 4 nodes: random shade of green
+    - 3 nodes: blue
+    - 2 nodes: red
+    - 1 node: magenta
+
+    Parameters:
+    - fig: plotly Figure object to add traces to
+    - nodes: Nx2 array of hex addresses (i, j), where N <= 4
+    - edges: Mx2x2 array where each edge is [[i1, j1], [i2, j2]]
+    - hex_size: circumradius of hexagons
+    - jitter: amount to offset edges inward (as fraction of hex_size)
+    """
+    num_nodes = len(nodes)
+
+    if num_nodes > 4:
+        raise ValueError(f"plot_small_shape only supports shapes with 4 or fewer nodes, got {num_nodes}")
+
+    # Determine color based on number of nodes
+    if num_nodes == 4:
+        # Random shade of green
+        r = np.random.randint(0, 100)
+        g = np.random.randint(150, 256)
+        b = np.random.randint(0, 100)
+        color = f'rgb({r},{g},{b})'
+    elif num_nodes == 3:
+        # Random shade of blue
+        r = np.random.randint(0, 100)
+        g = np.random.randint(0, 100)
+        b = np.random.randint(150, 256)
+        color = f'rgb({r},{g},{b})'
+    elif num_nodes == 2:
+        # Random shade of red
+        r = np.random.randint(150, 256)
+        g = np.random.randint(0, 100)
+        b = np.random.randint(0, 100)
+        color = f'rgb({r},{g},{b})'
+    elif num_nodes == 1:
+        # Random shade of magenta
+        r = np.random.randint(150, 256)
+        g = np.random.randint(0, 100)
+        b = np.random.randint(150, 256)
+        color = f'rgb({r},{g},{b})'
+    else:
+        # 0 nodes - shouldn't happen but handle it
+        color = 'gray'
+
+    return plot_shape(fig, nodes, edges, hex_size=hex_size,
+                     node_color=color, edge_color=color, jitter=jitter)
