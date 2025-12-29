@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from javelance.shapes import Shape
+from javelance.shapes import Shape, DOODADS, GIZMOS, SPROCKETS
+from javelance.plotting import plot_hex_grid, plot_shape
 
 
 def test_valid_shape():
@@ -303,6 +304,113 @@ def test_rotations_preserve_mean_color():
 
     for rotated in rotations:
         assert rotated.mean_color == "rgb(100, 150, 200)"
+
+
+def test_plot_doodads_rotations():
+    """Visual test: Plot all rotations of DOODADS shapes."""
+    fig = plot_hex_grid(10, 8)
+
+    for shape_idx, shape in enumerate(DOODADS):
+        rotations = shape.rotations()
+
+        # Arrange rotations in a 2x3 grid
+        for rot_idx, rotated in enumerate(rotations):
+            # Calculate offset for this rotation
+            row = rot_idx // 3
+            col = rot_idx % 3
+            base_offset = np.array([col * 3, row * 4])
+
+            # Shift all nodes and edges
+            shifted_nodes = rotated.nodes + base_offset
+            shifted_edges = rotated.edges + base_offset
+
+            # Use jittered color for variety
+            color = rotated.jittered_color(jitter_amount=15)
+
+            plot_shape(fig, shifted_nodes, shifted_edges,
+                      node_color=color, edge_color=color)
+
+    fig.show()
+
+
+def test_plot_gizmos_rotations():
+    """Visual test: Plot all rotations of GIZMOS shapes."""
+    # Calculate grid size needed
+    num_shapes = len(GIZMOS)
+    shapes_per_row = 2
+    rotations_per_shape = 6
+    cols_per_shape = 3  # 3 rotations per row within each shape
+
+    fig = plot_hex_grid(12, 15)
+
+    for shape_idx, shape in enumerate(GIZMOS):
+        rotations = shape.rotations()
+
+        # Calculate base offset for this shape
+        shape_row = shape_idx // shapes_per_row
+        shape_col = shape_idx % shapes_per_row
+
+        for rot_idx, rotated in enumerate(rotations):
+            # Position within the shape's grid
+            rot_row = rot_idx // 3
+            rot_col = rot_idx % 3
+
+            # Calculate global offset
+            base_offset = np.array([
+                shape_col * 6 + rot_col * 2,
+                shape_row * 8 + rot_row * 4
+            ])
+
+            # Shift all nodes and edges
+            shifted_nodes = rotated.nodes + base_offset
+            shifted_edges = rotated.edges + base_offset
+
+            # Use jittered color for variety
+            color = rotated.jittered_color(jitter_amount=15)
+
+            plot_shape(fig, shifted_nodes, shifted_edges,
+                      node_color=color, edge_color=color)
+
+    fig.show()
+
+
+def test_plot_sprockets_rotations():
+    """Visual test: Plot all rotations of SPROCKETS shapes."""
+    # Calculate grid size needed
+    num_shapes = len(SPROCKETS)
+    shapes_per_row = 2
+
+    fig = plot_hex_grid(12, 15)
+
+    for shape_idx, shape in enumerate(SPROCKETS):
+        rotations = shape.rotations()
+
+        # Calculate base offset for this shape
+        shape_row = shape_idx // shapes_per_row
+        shape_col = shape_idx % shapes_per_row
+
+        for rot_idx, rotated in enumerate(rotations):
+            # Position within the shape's grid
+            rot_row = rot_idx // 3
+            rot_col = rot_idx % 3
+
+            # Calculate global offset
+            base_offset = np.array([
+                shape_col * 6 + rot_col * 2,
+                shape_row * 8 + rot_row * 4
+            ])
+
+            # Shift all nodes and edges
+            shifted_nodes = rotated.nodes + base_offset
+            shifted_edges = rotated.edges + base_offset
+
+            # Use jittered color for variety
+            color = rotated.jittered_color(jitter_amount=15)
+
+            plot_shape(fig, shifted_nodes, shifted_edges,
+                      node_color=color, edge_color=color)
+
+    fig.show()
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Self
 
 import matplotlib.colors as mcolors
 import numpy as np
@@ -99,7 +100,28 @@ class Shape:
                     f"Invalid edge: hexagons {hex1} and {hex2} are not adjacent (offset {offset})"
                 )
 
-    def rotations(self):
+    def bounding_box(self) -> tuple[np.ndarray, np.ndarray]:
+        """Return the hexes whose coordinates are the lower and upper bounds of all nodes in the shape"""
+        return self.nodes.min(axis=0), self.nodes.max(axis=0)
+
+    def originated_rotations(self) -> list[Self]:
+        """Return all rotations of the shape, but shifted such that all node coordinates are positive"""
+        return [x.originated() for x in self.rotations()]
+
+    def originated(self):
+        """Shift the shape such that the minimum address for both coordinates is 0"""
+        displacement = -np.min(self.nodes, axis=0, keepdims=True)
+        return self.translate(displacement)
+
+    def translate(self, displacement: np.ndarray) -> Self:
+        """Shift the shape by the given displacement vector"""
+        nodes_translated = self.nodes + displacement
+        edges_translated = self.edges + displacement
+        return self.__class__(
+            nodes=nodes_translated, edges=edges_translated, mean_color=self.mean_color
+        )
+
+    def rotations(self) -> list[Self]:
         """
         Generate all 6 rotations of this shape on the hex grid.
 
@@ -217,6 +239,7 @@ DOODADS = [
                 [[1, 4], [2, 3]],
             ]
         ),
+        mean_color="chartreuse",
     )
 ]
 
@@ -238,6 +261,7 @@ GIZMOS = [
                 [[1, 4], [2, 3]],
             ]
         ),
+        mean_color="blue",
     ),
     Shape(
         nodes=np.array(
@@ -258,6 +282,7 @@ GIZMOS = [
                 [[1, 4], [2, 3]],
             ]
         ),
+        mean_color="yellow",
     ),
     Shape(
         nodes=np.array(
@@ -275,6 +300,7 @@ GIZMOS = [
                 [[3, 0], [3, 1]],
             ]
         ),
+        mean_color="red",
     ),
 ]
 
