@@ -804,10 +804,18 @@ def test_vertical_box_offset_pattern():
     # Row 2 (i=2): offset (-2//2, 2) = (-1, 2) → nodes at (-1,2), (0,2), (1,2)
     # Row 3 (i=3): offset (-3//2, 3) = (-1, 3) → nodes at (-1,3), (0,3), (1,3)
     expected_nodes = {
-        (0, 0), (1, 0), (2, 0),
-        (0, 1), (1, 1), (2, 1),
-        (-1, 2), (0, 2), (1, 2),
-        (-1, 3), (0, 3), (1, 3),
+        (0, 0),
+        (1, 0),
+        (2, 0),
+        (0, 1),
+        (1, 1),
+        (2, 1),
+        (-1, 2),
+        (0, 2),
+        (1, 2),
+        (-1, 3),
+        (0, 3),
+        (1, 3),
     }
     assert set(map(tuple, shape.nodes)) == expected_nodes
 
@@ -1141,26 +1149,26 @@ def test_as_edge_set_empty():
     assert edge_set == set()
 
 
-def test_edges_full_simple():
+def test_interior_edges_simple():
     """Test that edges_full returns all valid edges for a simple shape."""
     # Three nodes in a line: (0,0) - (1,0) - (2,0)
     nodes = np.array([[0, 0], [1, 0], [2, 0]])
     edges = np.empty((0, 2, 2), dtype=int)
     shape = Shape(nodes=nodes, edges=edges)
 
-    full_edges = shape.edges_full()
+    full_edges = shape.interior_edges()
 
     # Should have edges between adjacent hexes
     expected = {((0, 0), (1, 0)), ((1, 0), (2, 0))}
     assert full_edges == expected
 
 
-def test_edges_full_square():
+def test_interior_edges_square():
     """Test edges_full on a 2x2 box."""
     # Create a 2x2 box
     shape = Shape.box(width=2, height=2)
 
-    full_edges = shape.edges_full()
+    full_edges = shape.interior_edges()
 
     # A 2x2 box has nodes: (0,0), (1,0), (0,1), (1,1)
     # Valid adjacencies in pointy-top hex grid:
@@ -1179,26 +1187,26 @@ def test_edges_full_square():
     assert full_edges == expected
 
 
-def test_edges_full_isolated_nodes():
+def test_interior_edges_isolated_nodes():
     """Test edges_full with isolated nodes."""
     # Two nodes that are not adjacent
     nodes = np.array([[0, 0], [5, 5]])
     edges = np.empty((0, 2, 2), dtype=int)
     shape = Shape(nodes=nodes, edges=edges)
 
-    full_edges = shape.edges_full()
+    full_edges = shape.interior_edges()
 
     # No edges since nodes are not adjacent
     assert full_edges == set()
 
 
-def test_edges_full_single_node():
+def test_interior_edges_single_node():
     """Test edges_full with a single node."""
     nodes = np.array([[0, 0]])
     edges = np.empty((0, 2, 2), dtype=int)
     shape = Shape(nodes=nodes, edges=edges)
 
-    full_edges = shape.edges_full()
+    full_edges = shape.interior_edges()
 
     # No edges for a single node
     assert full_edges == set()

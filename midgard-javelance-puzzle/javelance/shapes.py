@@ -166,15 +166,29 @@ class Shape:
         """This Shape's edges as a set, normalized so that the nodes comprising the edge are ordered"""
         return self.as_edge_set(self.edges)
 
-    def edges_full(self) -> set[Edge]:
+    def interior_edges(self) -> set[Edge]:
         """Set of all valid edges that can be made from this shape's nodes"""
         nodes = self.node_set()
-        adjacent_nodes = {
+        adjacent_nodes_in_shape = {
             n: self.as_node_set(self.adjacent_nodes(np.array([n]))) & nodes
             for n in nodes
         }
         edges = set()
-        for n, adj in adjacent_nodes.items():
+        for n, adj in adjacent_nodes_in_shape.items():
+            these_edges = {self.normalize_edge((n, a)) for a in adj}
+            edges |= these_edges
+
+        return edges
+
+    def boundary_edges(self) -> set[Edge]:
+        """Set of all edges that are not interior edges but have one node in the shape"""
+        nodes = self.node_set()
+        adjacent_nodes_out_of_shape = {
+            n: self.as_node_set(self.adjacent_nodes(np.array([n]))) - nodes
+            for n in nodes
+        }
+        edges = set()
+        for n, adj in adjacent_nodes_out_of_shape.items():
             these_edges = {self.normalize_edge((n, a)) for a in adj}
             edges |= these_edges
 
@@ -589,7 +603,7 @@ JAVELANCE = JAVELANCE_VBOX.difference(
     Shape.from_sets(nodes=JAVELANCE_FORBIDDEN_NODES, edges=set())
 )
 
-JAVELANCE_FORBIDDEN_EDGES = JAVELANCE.adjacent().difference(JAVELANCE).edges_full()
+JAVELANCE_FORBIDDEN_EDGES = JAVELANCE.adjacent().difference(JAVELANCE).interior_edges()
 
 JAVELANCE_FORBIDDEN = Shape.from_sets(
     nodes=JAVELANCE_FORBIDDEN_NODES,
