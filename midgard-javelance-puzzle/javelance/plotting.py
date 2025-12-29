@@ -2,8 +2,130 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.io as pio
 
+from javelance.shapes import Shape
+
 # Set default renderer to always open plots in browser
 pio.renderers.default = "browser"
+
+
+def plot_shape_hexes(shape, hex_size=1.0):
+    """
+    Plot hexagons for all nodes in a shape, with interior and boundary edges.
+
+    Parameters:
+    - shape: Shape object containing nodes to plot
+    - hex_size: circumradius of each hexagon (distance from center to vertex)
+
+    Returns:
+    - Plotly Figure object
+    """
+    # For pointy-top hexagons with circumradius R:
+    # - i offset vector: (sqrt(3) * R, 0)
+    # - j offset vector: (sqrt(3)/2 * R, 3/2 * R)
+    R = hex_size
+    i_offset = np.array([np.sqrt(3) * R, 0])
+    j_offset = np.array([np.sqrt(3) / 2 * R, 3 / 2 * R])
+
+    # Vertices of a pointy-top hexagon are at angles: 30°, 90°, 150°, 210°, 270°, 330°
+    angles = np.array([30, 90, 150, 210, 270, 330]) * np.pi / 180
+
+    fig = go.Figure()
+
+    # Get nodes and edges
+    nodes = shape.node_set()
+    interior_edges = shape.interior_edges()
+    boundary_edges = shape.boundary_edges()
+
+    # Plot all hexagons for nodes in the shape
+    for node in nodes:
+        i, j = node
+        # Calculate center position of hexagon (i, j)
+        center = i * i_offset + j * j_offset
+        cx, cy = center
+
+        # Calculate vertices
+        vertices_x = cx + R * np.cos(angles)
+        vertices_y = cy + R * np.sin(angles)
+
+        # Close the hexagon by adding the first vertex at the end
+        vertices_x = np.append(vertices_x, vertices_x[0])
+        vertices_y = np.append(vertices_y, vertices_y[0])
+
+        # Add hexagon outline
+        fig.add_trace(
+            go.Scatter(
+                x=vertices_x,
+                y=vertices_y,
+                mode="lines",
+                line=dict(color="black", width=1),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+    # Plot interior edges (thick blue lines)
+    for edge in interior_edges:
+        hex1 = tuple(edge[0])
+        hex2 = tuple(edge[1])
+        v1, v2 = _shared_edge_vertices(hex1, hex2, hex_size)
+
+        fig.add_trace(
+            go.Scatter(
+                x=[v1[0], v2[0]],
+                y=[v1[1], v2[1]],
+                mode="lines",
+                line=dict(color="blue", width=3),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+    # Plot boundary edges (thick red lines)
+    for edge in boundary_edges:
+        hex1 = tuple(edge[0])
+        hex2 = tuple(edge[1])
+        # For boundary edges, one node might not be in the shape
+        # We can still calculate the shared edge position
+        v1, v2 = _shared_edge_vertices(hex1, hex2, hex_size)
+
+        fig.add_trace(
+            go.Scatter(
+                x=[v1[0], v2[0]],
+                y=[v1[1], v2[1]],
+                mode="lines",
+                line=dict(color="red", width=3),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+    # Calculate bounds for aspect ratio
+    if len(nodes) > 0:
+        min_addr, max_addr = shape.bounding_addresses()
+        # Maximum extent in x and y
+        max_x = (max_addr[0] - min_addr[0]) * np.sqrt(3) * R + (max_addr[1] - min_addr[1]) * np.sqrt(3) / 2 * R + 4 * R
+        max_y = (max_addr[1] - min_addr[1]) * 3 / 2 * R + 4 * R
+    else:
+        max_x = 4 * R
+        max_y = 4 * R
+
+    # Set a base height and calculate width to match the aspect ratio
+    base_height = 1200
+    aspect_ratio = max_x / max_y if max_y > 0 else 1.0
+    plot_width = int(base_height * aspect_ratio)
+    plot_height = base_height
+
+    # Set equal aspect ratio and clean layout
+    fig.update_layout(
+        width=plot_width,
+        height=plot_height,
+        xaxis=dict(scaleanchor="y", scaleratio=1, showgrid=False, zeroline=False),
+        yaxis=dict(showgrid=False, zeroline=False),
+        plot_bgcolor="white",
+        margin=dict(l=20, r=20, t=20, b=20),
+    )
+
+    return fig
 
 
 def plot_hex_grid(I, J, hex_size=1.0, exclude=None):
@@ -20,90 +142,18 @@ def plot_hex_grid(I, J, hex_size=1.0, exclude=None):
     - i direction is aligned with the x-axis
     - j direction is 60° counterclockwise from the x-axis
     """
-    # Convert exclude list to a set of tuples for fast lookup
+    # Create a box shape for the grid
+    grid_shape = Shape.box(width=I, height=J)
+
+    # If there are nodes to exclude, remove them from the grid shape
     if exclude is not None:
-        exclude_set = set(map(tuple, exclude))
-    else:
-        exclude_set = set()
-    # For pointy-top hexagons with circumradius R:
-    # - i offset vector: (sqrt(3) * R, 0)
-    # - j offset vector: (sqrt(3)/2 * R, 3/2 * R)
-    R = hex_size
-    i_offset = np.array([np.sqrt(3) * R, 0])
-    j_offset = np.array([np.sqrt(3) / 2 * R, 3 / 2 * R])
+        exclude_nodes = Shape.as_node_set(exclude)
+        grid_shape = grid_shape.difference(
+            Shape.from_sets(nodes=exclude_nodes, edges=set())
+        )
 
-    # Vertices of a pointy-top hexagon are at angles: 30°, 90°, 150°, 210°, 270°, 330°
-    angles = np.array([30, 90, 150, 210, 270, 330]) * np.pi / 180
-
-    fig = go.Figure()
-
-    # Generate all hexagons
-    for i in range(I):
-        for j in range(J):
-            # Calculate center position of hexagon (i, j)
-            center = i * i_offset + j * j_offset
-            cx, cy = center
-
-            # Calculate vertices
-            vertices_x = cx + R * np.cos(angles)
-            vertices_y = cy + R * np.sin(angles)
-
-            # Close the hexagon by adding the first vertex at the end
-            vertices_x = np.append(vertices_x, vertices_x[0])
-            vertices_y = np.append(vertices_y, vertices_y[0])
-
-            # Check if this hexagon should be excluded (shaded grey)
-            if (i, j) in exclude_set:
-                fig.add_trace(
-                    go.Scatter(
-                        x=vertices_x,
-                        y=vertices_y,
-                        mode="lines",
-                        line=dict(color="black", width=1),
-                        fill="toself",
-                        fillcolor="lightgrey",
-                        showlegend=False,
-                        hoverinfo="skip",
-                    )
-                )
-            else:
-                # Add hexagon outline only
-                fig.add_trace(
-                    go.Scatter(
-                        x=vertices_x,
-                        y=vertices_y,
-                        mode="lines",
-                        line=dict(color="black", width=1),
-                        showlegend=False,
-                        hoverinfo="skip",
-                    )
-                )
-
-    # Calculate the actual extent of the grid to determine aspect ratio
-    # The grid goes from (0,0) to (I-1, J-1)
-    # Maximum extent in x: (I-1) * sqrt(3) * R + (J-1) * sqrt(3)/2 * R
-    # Maximum extent in y: (J-1) * 3/2 * R
-    # Add 2*R on each side for padding
-    max_x = (I - 1) * np.sqrt(3) * R + (J - 1) * np.sqrt(3) / 2 * R + 4 * R
-    max_y = (J - 1) * 3 / 2 * R + 4 * R
-
-    # Set a base height and calculate width to match the aspect ratio
-    base_height = 800
-    aspect_ratio = max_x / max_y
-    plot_width = int(base_height * aspect_ratio)
-    plot_height = base_height
-
-    # Set equal aspect ratio and clean layout
-    fig.update_layout(
-        width=plot_width,
-        height=plot_height,
-        xaxis=dict(scaleanchor="y", scaleratio=1, showgrid=False, zeroline=False),
-        yaxis=dict(showgrid=False, zeroline=False),
-        plot_bgcolor="white",
-        margin=dict(l=20, r=20, t=20, b=20),
-    )
-
-    return fig
+    # Use plot_shape_hexes to plot the grid
+    return plot_shape_hexes(grid_shape, hex_size=hex_size)
 
 
 def _hex_center(i, j, hex_size=1.0):
