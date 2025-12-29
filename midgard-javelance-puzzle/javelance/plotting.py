@@ -26,7 +26,7 @@ def plot_hex_grid(I, J, hex_size=1.0, exclude=None):
     # - j offset vector: (sqrt(3)/2 * R, 3/2 * R)
     R = hex_size
     i_offset = np.array([np.sqrt(3) * R, 0])
-    j_offset = np.array([np.sqrt(3)/2 * R, 3/2 * R])
+    j_offset = np.array([np.sqrt(3) / 2 * R, 3 / 2 * R])
 
     # Vertices of a pointy-top hexagon are at angles: 30°, 90°, 150°, 210°, 270°, 330°
     angles = np.array([30, 90, 150, 210, 270, 330]) * np.pi / 180
@@ -50,26 +50,30 @@ def plot_hex_grid(I, J, hex_size=1.0, exclude=None):
 
             # Check if this hexagon should be excluded (shaded grey)
             if (i, j) in exclude_set:
-                fig.add_trace(go.Scatter(
-                    x=vertices_x,
-                    y=vertices_y,
-                    mode='lines',
-                    line=dict(color='black', width=1),
-                    fill='toself',
-                    fillcolor='lightgrey',
-                    showlegend=False,
-                    hoverinfo='skip'
-                ))
+                fig.add_trace(
+                    go.Scatter(
+                        x=vertices_x,
+                        y=vertices_y,
+                        mode="lines",
+                        line=dict(color="black", width=1),
+                        fill="toself",
+                        fillcolor="lightgrey",
+                        showlegend=False,
+                        hoverinfo="skip",
+                    )
+                )
             else:
                 # Add hexagon outline only
-                fig.add_trace(go.Scatter(
-                    x=vertices_x,
-                    y=vertices_y,
-                    mode='lines',
-                    line=dict(color='black', width=1),
-                    showlegend=False,
-                    hoverinfo='skip'
-                ))
+                fig.add_trace(
+                    go.Scatter(
+                        x=vertices_x,
+                        y=vertices_y,
+                        mode="lines",
+                        line=dict(color="black", width=1),
+                        showlegend=False,
+                        hoverinfo="skip",
+                    )
+                )
 
     # Set equal aspect ratio and clean layout
     fig.update_layout(
@@ -77,8 +81,8 @@ def plot_hex_grid(I, J, hex_size=1.0, exclude=None):
         height=800,
         xaxis=dict(scaleanchor="y", scaleratio=1, showgrid=False, zeroline=False),
         yaxis=dict(showgrid=False, zeroline=False),
-        plot_bgcolor='white',
-        margin=dict(l=20, r=20, t=20, b=20)
+        plot_bgcolor="white",
+        margin=dict(l=20, r=20, t=20, b=20),
     )
 
     return fig
@@ -88,7 +92,7 @@ def _hex_center(i, j, hex_size=1.0):
     """Calculate the center position of a hexagon at address (i, j)."""
     R = hex_size
     i_offset = np.array([np.sqrt(3) * R, 0])
-    j_offset = np.array([np.sqrt(3)/2 * R, 3/2 * R])
+    j_offset = np.array([np.sqrt(3) / 2 * R, 3 / 2 * R])
     return i * i_offset + j * j_offset
 
 
@@ -115,12 +119,12 @@ def _shared_edge_vertices(hex1, hex2, hex_size=1.0):
     # Map offset direction to the pair of vertex angles that define the shared edge
     # For pointy-top hexagons, vertices are at: 30°, 90°, 150°, 210°, 270°, 330°
     offset_to_vertices = {
-        (1, 0): (330, 30),      # right edge
-        (-1, 0): (150, 210),    # left edge
-        (0, 1): (30, 90),       # upper-right edge
-        (0, -1): (210, 270),    # lower-left edge
-        (1, -1): (270, 330),    # lower-right edge
-        (-1, 1): (90, 150),     # upper-left edge
+        (1, 0): (330, 30),  # right edge
+        (-1, 0): (150, 210),  # left edge
+        (0, 1): (30, 90),  # upper-right edge
+        (0, -1): (210, 270),  # lower-left edge
+        (1, -1): (270, 330),  # lower-right edge
+        (-1, 1): (90, 150),  # upper-left edge
     }
 
     offset_key = (di, dj)
@@ -142,7 +146,17 @@ def _shared_edge_vertices(hex1, hex2, hex_size=1.0):
     return v1, v2
 
 
-def plot_shape(fig, nodes, edges, hex_size=1.0, node_color='red', edge_color='blue', jitter=0.1, alpha=0.4, inset_ratio=0.7):
+def plot_shape(
+    fig,
+    nodes,
+    edges,
+    hex_size=1.0,
+    node_color="red",
+    edge_color="blue",
+    jitter=0.1,
+    alpha=0.7,
+    inset_ratio=0.7,
+):
     """
     Plot a shape on the hexagonal grid.
 
@@ -176,24 +190,28 @@ def plot_shape(fig, nodes, edges, hex_size=1.0, node_color='red', edge_color='bl
             vertices_y = np.append(vertices_y, vertices_y[0])
 
             # Convert color to rgba format with alpha
-            if node_color.startswith('rgb'):
+            if node_color.startswith("rgb"):
                 # Already in rgb format, convert to rgba
-                rgba_color = node_color.replace('rgb', 'rgba').replace(')', f', {alpha})')
+                rgba_color = node_color.replace("rgb", "rgba").replace(
+                    ")", f", {alpha})"
+                )
             else:
                 # Named color, use directly with opacity parameter
                 rgba_color = node_color
 
-            fig.add_trace(go.Scatter(
-                x=vertices_x,
-                y=vertices_y,
-                mode='lines',
-                line=dict(color=rgba_color, width=1),
-                fill='toself',
-                fillcolor=rgba_color,
-                opacity=alpha,
-                showlegend=False,
-                hoverinfo='skip'
-            ))
+            fig.add_trace(
+                go.Scatter(
+                    x=vertices_x,
+                    y=vertices_y,
+                    mode="lines",
+                    line=dict(color=rgba_color, width=1),
+                    fill="toself",
+                    fillcolor=rgba_color,
+                    opacity=alpha,
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
 
     # Plot edges
     for edge in edges:
@@ -233,23 +251,27 @@ def plot_shape(fig, nodes, edges, hex_size=1.0, node_color='red', edge_color='bl
         v2_jittered = v2 + jitter_vec
 
         # Convert edge color to rgba format with alpha
-        if edge_color.startswith('rgb'):
+        if edge_color.startswith("rgb"):
             # Already in rgb format, convert to rgba
-            edge_rgba_color = edge_color.replace('rgb', 'rgba').replace(')', f', {alpha})')
+            edge_rgba_color = edge_color.replace("rgb", "rgba").replace(
+                ")", f", {alpha})"
+            )
         else:
             # Named color, use directly with opacity parameter
             edge_rgba_color = edge_color
 
         # Plot the edge
-        fig.add_trace(go.Scatter(
-            x=[v1_jittered[0], v2_jittered[0]],
-            y=[v1_jittered[1], v2_jittered[1]],
-            mode='lines',
-            line=dict(color=edge_rgba_color, width=3),
-            opacity=alpha,
-            showlegend=False,
-            hoverinfo='skip'
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=[v1_jittered[0], v2_jittered[0]],
+                y=[v1_jittered[1], v2_jittered[1]],
+                mode="lines",
+                line=dict(color=edge_rgba_color, width=3),
+                opacity=alpha,
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
 
     return fig
 
@@ -274,7 +296,9 @@ def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1, alpha=0.4):
     num_nodes = len(nodes)
 
     if num_nodes > 4:
-        raise ValueError(f"plot_small_shape only supports shapes with 4 or fewer nodes, got {num_nodes}")
+        raise ValueError(
+            f"plot_small_shape only supports shapes with 4 or fewer nodes, got {num_nodes}"
+        )
 
     # Determine color based on number of nodes
     if num_nodes == 4:
@@ -282,28 +306,36 @@ def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1, alpha=0.4):
         r = np.random.randint(0, 100)
         g = np.random.randint(150, 256)
         b = np.random.randint(0, 100)
-        color = f'rgb({r},{g},{b})'
+        color = f"rgb({r},{g},{b})"
     elif num_nodes == 3:
         # Random shade of blue
         r = np.random.randint(0, 100)
         g = np.random.randint(0, 100)
         b = np.random.randint(150, 256)
-        color = f'rgb({r},{g},{b})'
+        color = f"rgb({r},{g},{b})"
     elif num_nodes == 2:
         # Random shade of red
         r = np.random.randint(150, 256)
         g = np.random.randint(0, 100)
         b = np.random.randint(0, 100)
-        color = f'rgb({r},{g},{b})'
+        color = f"rgb({r},{g},{b})"
     elif num_nodes == 1:
         # Random shade of magenta
         r = np.random.randint(150, 256)
         g = np.random.randint(0, 100)
         b = np.random.randint(150, 256)
-        color = f'rgb({r},{g},{b})'
+        color = f"rgb({r},{g},{b})"
     else:
         # 0 nodes - shouldn't happen but handle it
-        color = 'gray'
+        color = "gray"
 
-    return plot_shape(fig, nodes, edges, hex_size=hex_size,
-                     node_color=color, edge_color=color, jitter=jitter, alpha=alpha)
+    return plot_shape(
+        fig,
+        nodes,
+        edges,
+        hex_size=hex_size,
+        node_color=color,
+        edge_color=color,
+        jitter=jitter,
+        alpha=alpha,
+    )
