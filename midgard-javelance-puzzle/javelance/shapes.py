@@ -61,6 +61,11 @@ class Shape:
         return np.empty((0, 2, 2), dtype=int)
 
     @classmethod
+    def normalize_edge(cls, edge) -> Edge:
+        """Normalize an edge by sorting its nodes to ensure consistent comparison."""
+        return tuple(sorted([tuple(edge[0]), tuple(edge[1])]))
+
+    @classmethod
     def from_sets(
         cls, nodes: set[Node], edges: set[Edge], mean_color: str = None
     ) -> Self:
@@ -109,10 +114,7 @@ class Shape:
 
     def edge_set(self) -> set[Edge]:
         """This Shape's edges as a set, normalized so that the nodes comprising the edge are ordered"""
-        def normalize_edge(edge):
-            return tuple(sorted([tuple(edge[0]), tuple(edge[1])]))
-
-        return set(normalize_edge(edge) for edge in self.edges)
+        return set(self.normalize_edge(edge) for edge in self.edges)
 
     def bounding_addresses(self) -> tuple[np.ndarray, np.ndarray]:
         """Return the hexes whose coordinates are the lower and upper bounds of all nodes in the shape"""
@@ -142,11 +144,8 @@ class Shape:
 
         # Check if edges are the same (as sets, order doesn't matter)
         # Normalize each edge by sorting its two hexes
-        def normalize_edge(edge):
-            return tuple(sorted([tuple(edge[0]), tuple(edge[1])]))
-
-        self_edges_set = set(normalize_edge(edge) for edge in self_originated.edges)
-        other_edges_set = set(normalize_edge(edge) for edge in other_originated.edges)
+        self_edges_set = set(self.normalize_edge(edge) for edge in self_originated.edges)
+        other_edges_set = set(self.normalize_edge(edge) for edge in other_originated.edges)
 
         return self_edges_set == other_edges_set
 
@@ -304,7 +303,7 @@ class Shape:
         edges_set = set()
         for edge in self.edges:
             # Normalize edge representation (sort the two hexes to make comparison order-independent)
-            edge_tuple = tuple(sorted([tuple(edge[0]), tuple(edge[1])]))
+            edge_tuple = self.normalize_edge(edge)
             if edge_tuple in edges_set:
                 raise ValueError(f"Duplicate edge found: {edge}")
             edges_set.add(edge_tuple)
