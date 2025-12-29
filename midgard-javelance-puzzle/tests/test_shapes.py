@@ -195,5 +195,101 @@ def test_rotations_60_degree():
     assert np.array_equal(rotated_60.nodes, expected_nodes)
 
 
+def test_shape_has_mean_color():
+    """Test that Shape has a mean_color field with a default value."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    assert hasattr(shape, 'mean_color')
+    assert shape.mean_color == "rgb(128, 128, 128)"
+
+
+def test_shape_custom_mean_color():
+    """Test that Shape accepts a custom mean_color."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(100, 150, 200)")
+
+    assert shape.mean_color == "rgb(100, 150, 200)"
+
+
+def test_jittered_color_format():
+    """Test that jittered_color returns a valid rgb() string."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(128, 128, 128)")
+
+    jittered = shape.jittered_color()
+
+    # Check format
+    assert jittered.startswith("rgb(")
+    assert jittered.endswith(")")
+
+    # Extract and validate RGB values
+    rgb_str = jittered[4:-1]
+    r, g, b = map(int, rgb_str.split(","))
+    assert 0 <= r <= 255
+    assert 0 <= g <= 255
+    assert 0 <= b <= 255
+
+
+def test_jittered_color_clamping():
+    """Test that jittered_color clamps values to valid range."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+
+    # Test clamping at lower bound
+    shape_low = Shape(nodes=nodes, edges=edges, mean_color="rgb(10, 10, 10)")
+    for _ in range(10):
+        jittered = shape_low.jittered_color(jitter_amount=50)
+        rgb_str = jittered[4:-1]
+        r, g, b = map(int, rgb_str.split(","))
+        assert r >= 0 and g >= 0 and b >= 0
+
+    # Test clamping at upper bound
+    shape_high = Shape(nodes=nodes, edges=edges, mean_color="rgb(245, 245, 245)")
+    for _ in range(10):
+        jittered = shape_high.jittered_color(jitter_amount=50)
+        rgb_str = jittered[4:-1]
+        r, g, b = map(int, rgb_str.split(","))
+        assert r <= 255 and g <= 255 and b <= 255
+
+
+def test_jittered_color_with_rgba():
+    """Test that jittered_color works with rgba format."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgba(128, 128, 128, 0.5)")
+
+    jittered = shape.jittered_color()
+
+    # Should return rgb format even if input is rgba
+    assert jittered.startswith("rgb(")
+    assert jittered.endswith(")")
+
+
+def test_jittered_color_invalid_format():
+    """Test that jittered_color raises error for invalid color formats."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="blue")
+
+    with pytest.raises(ValueError, match="mean_color must be in 'rgb"):
+        shape.jittered_color()
+
+
+def test_rotations_preserve_mean_color():
+    """Test that rotations preserve the mean_color."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(100, 150, 200)")
+
+    rotations = shape.rotations()
+
+    for rotated in rotations:
+        assert rotated.mean_color == "rgb(100, 150, 200)"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

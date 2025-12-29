@@ -19,8 +19,11 @@ ROTATION_MATRICES = [
 class Shape:
     nodes: np.ndarray
     edges: np.ndarray
+    mean_color: str = "rgb(128, 128, 128)"  # Default gray color
 
     def __post_init__(self):
+        self._raise_if_color_str_invalid()
+
         # ensure that nodes is a 2d array where dimension 1 has size 2
         if self.nodes.ndim != 2:
             raise ValueError(f"nodes must be a 2D array, got {self.nodes.ndim}D")
@@ -108,9 +111,70 @@ class Shape:
             else:
                 rotated_edges = np.empty((0, 2, 2), dtype=int)
 
-            rotated_shapes.append(Shape(nodes=rotated_nodes, edges=rotated_edges))
+            rotated_shapes.append(
+                Shape(
+                    nodes=rotated_nodes, edges=rotated_edges, mean_color=self.mean_color
+                )
+            )
 
         return rotated_shapes
+
+    def jittered_color(self, jitter_amount=20):
+        """
+        Generate a color by adding random noise to the mean_color in RGB space.
+
+        Parameters:
+        - jitter_amount: maximum amount to jitter each RGB channel (default 20)
+
+        Returns:
+        - A string in "rgb(r, g, b)" format with jittered values
+        """
+        r, g, b = self._parse_color()
+
+        # Add random jitter to each channel
+        r_jittered = r + np.random.randint(-jitter_amount, jitter_amount + 1)
+        g_jittered = g + np.random.randint(-jitter_amount, jitter_amount + 1)
+        b_jittered = b + np.random.randint(-jitter_amount, jitter_amount + 1)
+
+        # Clamp values to valid range [0, 255]
+        r_jittered = np.clip(r_jittered, 0, 255)
+        g_jittered = np.clip(g_jittered, 0, 255)
+        b_jittered = np.clip(b_jittered, 0, 255)
+
+        return f"rgb({r_jittered}, {g_jittered}, {b_jittered})"
+
+    def _parse_color(self) -> tuple[int, int, int]:
+        # Parse the mean color to extract RGB values
+        color_str = self.mean_color.strip()
+
+        if self._is_rgb_str(color_str):
+            # Extract RGB values from "rgb(r, g, b)" format
+            rgb_str = color_str[4:-1]  # Remove "rgb(" and ")"
+            r, g, b = map(int, rgb_str.split(","))
+        elif self._is_rgba_str(color_str):
+            # Extract RGB values from "rgba(r, g, b, a)" format
+            rgba_str = color_str[5:-1]  # Remove "rgba(" and ")"
+            r, g, b, _ = map(float, rgba_str.split(","))
+            r, g, b = int(r), int(g), int(b)
+        else:
+            self._raise_if_color_str_invalid()
+
+        return r, g, b
+
+    def _is_rgba_str(self, color_str: str) -> bool:
+        return color_str.startswith("rgba(") and color_str.endswith(")")
+
+    def _is_rgb_str(self, color_str: str) -> bool:
+        return color_str.startswith("rgb(") and color_str.endswith(")")
+
+    def _raise_if_color_str_invalid(self):
+        color_str = self.mean_color.strip()
+        if not (self._is_rgb_str(color_str) or self._is_rgba_str(color_str)):
+            # For named colors or other formats, default to a base gray
+            # In practice, users should use rgb() format for mean_color if they want jittering
+            raise ValueError(
+                f"mean_color must be in 'rgb(r, g, b)' or 'rgba(r, g, b, a)' format, got '{color_str}'"
+            )
 
 
 DOODADS = [

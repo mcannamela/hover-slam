@@ -108,5 +108,37 @@ def test_plot_rotations():
     fig.show()
 
 
+def test_plot_jittered_colors():
+    """Test plotting shapes with jittered colors."""
+    from javelance.shapes import Shape
+
+    # Create a shape with a specific mean color
+    nodes = np.array([[0, 0], [1, 0], [0, 1]])
+    edges = np.array([[[0, 0], [1, 0]], [[0, 0], [0, 1]]])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(100, 150, 200)")
+
+    # Create a grid and plot multiple instances with jittered colors
+    fig = plot_hex_grid(8, 5)
+
+    # Plot the same shape at different locations with jittered colors
+    offsets = [
+        (0, 0), (2, 0), (4, 0), (6, 0),
+        (0, 2), (2, 2), (4, 2), (6, 2),
+    ]
+
+    for offset in offsets:
+        # Shift the nodes by the offset
+        shifted_nodes = shape.nodes + np.array(offset)
+        shifted_edges = shape.edges + np.array(offset)
+
+        # Get a jittered color
+        color = shape.jittered_color(jitter_amount=30)
+
+        # Plot with the jittered color
+        plot_shape(fig, shifted_nodes, shifted_edges, node_color=color, edge_color=color)
+
+    fig.show()
+
+
 if __name__ == "__main__":
-    test_plot_rotations()
+    test_plot_jittered_colors()
