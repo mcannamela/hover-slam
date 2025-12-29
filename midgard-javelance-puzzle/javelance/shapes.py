@@ -320,6 +320,7 @@ SPROCKETS = [
                 [[1, 4], [2, 3]],
             ]
         ),
+        mean_color="cyan",
     ),
     Shape(
         nodes=np.array(
@@ -333,6 +334,7 @@ SPROCKETS = [
                 [[3, 0], [3, 1]],
             ]
         ),
+        mean_color="purple",
     ),
     Shape(
         nodes=np.array(
@@ -348,5 +350,6 @@ SPROCKETS = [
                 [[2, 0], [1, 1]],
             ]
         ),
+        mean_color="orange",
     ),
 ]
