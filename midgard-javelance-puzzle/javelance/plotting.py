@@ -75,10 +75,24 @@ def plot_hex_grid(I, J, hex_size=1.0, exclude=None):
                     )
                 )
 
+    # Calculate the actual extent of the grid to determine aspect ratio
+    # The grid goes from (0,0) to (I-1, J-1)
+    # Maximum extent in x: (I-1) * sqrt(3) * R + (J-1) * sqrt(3)/2 * R
+    # Maximum extent in y: (J-1) * 3/2 * R
+    # Add 2*R on each side for padding
+    max_x = (I - 1) * np.sqrt(3) * R + (J - 1) * np.sqrt(3) / 2 * R + 4 * R
+    max_y = (J - 1) * 3 / 2 * R + 4 * R
+
+    # Set a base height and calculate width to match the aspect ratio
+    base_height = 800
+    aspect_ratio = max_x / max_y
+    plot_width = int(base_height * aspect_ratio)
+    plot_height = base_height
+
     # Set equal aspect ratio and clean layout
     fig.update_layout(
-        width=800,
-        height=800,
+        width=plot_width,
+        height=plot_height,
         xaxis=dict(scaleanchor="y", scaleratio=1, showgrid=False, zeroline=False),
         yaxis=dict(showgrid=False, zeroline=False),
         plot_bgcolor="white",
