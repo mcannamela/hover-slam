@@ -61,7 +61,7 @@ class Shape:
         cls, nodes: set[Node], edges: set[Edge], mean_color: str = None
     ) -> Self:
         """Construct a Shape from sets of nodes and edges."""
-        pass
+        raise NotImplementedError()
 
     def negative_nodes(self) -> Self:
         """Return a Shape with all the nodes in this Shape's bounding_box that are not in the Shape and no edges"""
@@ -84,11 +84,11 @@ class Shape:
 
     def node_set(self) -> set[Node]:
         """This Shape's nodes as a set"""
-        pass
+        raise NotImplementedError()
 
     def edge_set(self) -> set[Edge]:
         """This Shape's edges as a set, normalized so that the nodes comprising the edge are ordered"""
-        pass
+        raise NotImplementedError()
 
     def bounding_addresses(self) -> tuple[np.ndarray, np.ndarray]:
         """Return the hexes whose coordinates are the lower and upper bounds of all nodes in the shape"""
