@@ -306,28 +306,202 @@ def test_rotations_preserve_mean_color():
         assert rotated.mean_color == "rgb(100, 150, 200)"
 
 
+def test_bounding_box():
+    """Test that bounding_box returns correct min and max coordinates."""
+    nodes = np.array([[1, 2], [5, 3], [2, 7]])
+    edges = np.empty((0, 2, 2), dtype=int)
+    shape = Shape(nodes=nodes, edges=edges)
+
+    min_coords, max_coords = shape.bounding_box()
+
+    assert np.array_equal(min_coords, np.array([1, 2]))
+    assert np.array_equal(max_coords, np.array([5, 7]))
+
+
+def test_bounding_box_single_node():
+    """Test bounding_box with a single node."""
+    nodes = np.array([[3, 4]])
+    edges = np.empty((0, 2, 2), dtype=int)
+    shape = Shape(nodes=nodes, edges=edges)
+
+    min_coords, max_coords = shape.bounding_box()
+
+    assert np.array_equal(min_coords, np.array([3, 4]))
+    assert np.array_equal(max_coords, np.array([3, 4]))
+
+
+def test_translate():
+    """Test that translate shifts the shape correctly."""
+    nodes = np.array([[1, 2], [2, 2]])  # Adjacent hexagons
+    edges = np.array([[[1, 2], [2, 2]]])  # Valid edge (offset (1, 0))
+    shape = Shape(nodes=nodes, edges=edges, mean_color="blue")
+
+    displacement = np.array([10, 20])
+    translated = shape.translate(displacement)
+
+    expected_nodes = np.array([[11, 22], [12, 22]])
+    expected_edges = np.array([[[11, 22], [12, 22]]])
+
+    assert np.array_equal(translated.nodes, expected_nodes)
+    assert np.array_equal(translated.edges, expected_edges)
+    assert translated.mean_color == shape.mean_color
+
+
+def test_translate_preserves_color():
+    """Test that translate preserves mean_color."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="red")
+
+    translated = shape.translate(np.array([5, 5]))
+
+    assert translated.mean_color == shape.mean_color
+
+
+def test_translate_inverse():
+    """Test that translate(translate(x), -x) equals the original shape."""
+    nodes = np.array([[1, 2], [2, 2], [3, 2]])  # Line of adjacent hexagons
+    edges = np.array([[[1, 2], [2, 2]], [[2, 2], [3, 2]]])  # Valid edges
+    shape = Shape(nodes=nodes, edges=edges, mean_color="green")
+
+    displacement = np.array([7, -3])
+
+    # Translate forward then backward
+    translated_forward = shape.translate(displacement)
+    translated_back = translated_forward.translate(-displacement)
+
+    # Should equal original
+    assert np.array_equal(translated_back.nodes, shape.nodes)
+    assert np.array_equal(translated_back.edges, shape.edges)
+    assert translated_back.mean_color == shape.mean_color
+
+
+def test_translate_with_negative_displacement():
+    """Test translate with negative displacement."""
+    nodes = np.array([[5, 5], [6, 5]])  # Adjacent hexagons
+    edges = np.array([[[5, 5], [6, 5]]])  # Valid edge (offset (1, 0))
+    shape = Shape(nodes=nodes, edges=edges)
+
+    translated = shape.translate(np.array([-2, -3]))
+
+    expected_nodes = np.array([[3, 2], [4, 2]])
+    assert np.array_equal(translated.nodes, expected_nodes)
+
+
+def test_originated():
+    """Test that originated shifts shape to have minimum coords at origin."""
+    nodes = np.array([[3, 5], [4, 5], [4, 6]])  # Adjacent hexagons
+    edges = np.array([[[3, 5], [4, 5]], [[4, 5], [4, 6]]])  # Valid edges
+    shape = Shape(nodes=nodes, edges=edges)
+
+    originated = shape.originated()
+
+    # Minimum should be [0, 0]
+    min_coords, _ = originated.bounding_box()
+    assert np.array_equal(min_coords, np.array([0, 0]))
+
+    # Shape should be shifted by -[3, 5]
+    expected_nodes = np.array([[0, 0], [1, 0], [1, 1]])
+    assert np.array_equal(originated.nodes, expected_nodes)
+
+
+def test_originated_already_at_origin():
+    """Test originated when shape is already at origin."""
+    nodes = np.array([[0, 0], [1, 0], [1, 1]])  # Adjacent hexagons
+    edges = np.array([[[0, 0], [1, 0]], [[1, 0], [1, 1]]])  # Valid edges
+    shape = Shape(nodes=nodes, edges=edges)
+
+    originated = shape.originated()
+
+    # Should be unchanged
+    assert np.array_equal(originated.nodes, shape.nodes)
+    assert np.array_equal(originated.edges, shape.edges)
+
+
+def test_originated_with_negative_coords():
+    """Test originated with negative coordinates."""
+    nodes = np.array([[-5, -3], [-4, -3], [-4, -2]])  # Adjacent hexagons
+    edges = np.array([[[-5, -3], [-4, -3]], [[-4, -3], [-4, -2]]])  # Valid edges
+    shape = Shape(nodes=nodes, edges=edges)
+
+    originated = shape.originated()
+
+    # Minimum should be [0, 0]
+    min_coords, _ = originated.bounding_box()
+    assert np.array_equal(min_coords, np.array([0, 0]))
+
+    # Shape should be shifted by -[-5, -3] = [5, 3]
+    expected_nodes = np.array([[0, 0], [1, 0], [1, 1]])
+    assert np.array_equal(originated.nodes, expected_nodes)
+
+
+def test_originated_rotations_count():
+    """Test that originated_rotations returns 6 shapes."""
+    nodes = np.array([[1, 2], [2, 2]])  # Adjacent hexagons
+    edges = np.array([[[1, 2], [2, 2]]])  # Valid edge
+    shape = Shape(nodes=nodes, edges=edges)
+
+    originated_rots = shape.originated_rotations()
+
+    assert len(originated_rots) == 6
+
+
+def test_originated_rotations_all_at_origin():
+    """Test that all originated rotations have minimum coords at origin."""
+    nodes = np.array([[5, 3], [6, 3], [6, 4]])  # Adjacent hexagons
+    edges = np.array([[[5, 3], [6, 3]], [[6, 3], [6, 4]]])  # Valid edges
+    shape = Shape(nodes=nodes, edges=edges)
+
+    originated_rots = shape.originated_rotations()
+
+    for rotated in originated_rots:
+        min_coords, _ = rotated.bounding_box()
+        assert np.array_equal(min_coords, np.array([0, 0])),             f"Rotation not at origin: min_coords = {min_coords}"
+
+
+def test_originated_rotations_preserve_color():
+    """Test that originated_rotations preserves mean_color."""
+    nodes = np.array([[1, 2], [2, 2]])  # Adjacent hexagons
+    edges = np.array([[[1, 2], [2, 2]]])  # Valid edge
+    shape = Shape(nodes=nodes, edges=edges, mean_color="purple")
+
+    originated_rots = shape.originated_rotations()
+
+    for rotated in originated_rots:
+        assert rotated.mean_color == shape.mean_color
+
+
 def test_plot_doodads_rotations():
     """Visual test: Plot all rotations of DOODADS shapes."""
-    fig = plot_hex_grid(10, 8)
+    fig = plot_hex_grid(25, 15)
 
     for shape_idx, shape in enumerate(DOODADS):
-        rotations = shape.rotations()
+        originated_rots = shape.originated_rotations()
 
         # Arrange rotations in a 2x3 grid
-        for rot_idx, rotated in enumerate(rotations):
+        for rot_idx, rotated in enumerate(originated_rots):
             # Calculate offset for this rotation
             row = rot_idx // 3
             col = rot_idx % 3
-            base_offset = np.array([col * 3, row * 4])
 
-            # Shift all nodes and edges
-            shifted_nodes = rotated.nodes + base_offset
-            shifted_edges = rotated.edges + base_offset
+            # Get bounding box to ensure proper spacing
+            min_coords, max_coords = rotated.bounding_box()
+            shape_width = max_coords[0] - min_coords[0] + 1
+            shape_height = max_coords[1] - min_coords[1] + 1
+
+            # Add 1 hex spacing between shapes
+            base_offset = np.array([
+                col * (shape_width + 1),
+                row * (shape_height + 1)
+            ])
+
+            # Translate the shape to its position
+            positioned = rotated.translate(base_offset)
 
             # Use jittered color for variety
-            color = rotated.jittered_color(jitter_amount=15)
+            color = positioned.jittered_color(jitter_amount=15)
 
-            plot_shape(fig, shifted_nodes, shifted_edges,
+            plot_shape(fig, positioned.nodes, positioned.edges,
                       node_color=color, edge_color=color)
 
     fig.show()
@@ -335,40 +509,51 @@ def test_plot_doodads_rotations():
 
 def test_plot_gizmos_rotations():
     """Visual test: Plot all rotations of GIZMOS shapes."""
-    # Calculate grid size needed
-    num_shapes = len(GIZMOS)
     shapes_per_row = 2
-    rotations_per_shape = 6
-    cols_per_shape = 3  # 3 rotations per row within each shape
+    rots_per_row = 3  # 3 rotations per row within each shape
 
-    fig = plot_hex_grid(12, 15)
+    # Calculate maximum bounding box size for all rotations of all shapes
+    max_width = 0
+    max_height = 0
+    for shape in GIZMOS:
+        for rotated in shape.originated_rotations():
+            min_c, max_c = rotated.bounding_box()
+            width = max_c[0] - min_c[0] + 1
+            height = max_c[1] - min_c[1] + 1
+            max_width = max(max_width, width)
+            max_height = max(max_height, height)
+
+    # Calculate grid size
+    grid_width = shapes_per_row * rots_per_row * (max_width + 1) + 2
+    grid_height = ((len(GIZMOS) + shapes_per_row - 1) // shapes_per_row) * 2 * (max_height + 1) + 2
+
+    fig = plot_hex_grid(grid_width, grid_height)
 
     for shape_idx, shape in enumerate(GIZMOS):
-        rotations = shape.rotations()
+        originated_rots = shape.originated_rotations()
 
-        # Calculate base offset for this shape
+        # Calculate base offset for this shape's block
         shape_row = shape_idx // shapes_per_row
         shape_col = shape_idx % shapes_per_row
 
-        for rot_idx, rotated in enumerate(rotations):
-            # Position within the shape's grid
-            rot_row = rot_idx // 3
-            rot_col = rot_idx % 3
+        for rot_idx, rotated in enumerate(originated_rots):
+            # Position within the shape's grid (2 rows, 3 cols)
+            rot_row = rot_idx // rots_per_row
+            rot_col = rot_idx % rots_per_row
 
             # Calculate global offset
             base_offset = np.array([
-                shape_col * 6 + rot_col * 2,
-                shape_row * 8 + rot_row * 4
+                shape_col * rots_per_row * (max_width + 1) + rot_col * (max_width + 1),
+                shape_row * 2 * (max_height + 1) + rot_row * (max_height + 1)
             ])
 
-            # Shift all nodes and edges
-            shifted_nodes = rotated.nodes + base_offset
-            shifted_edges = rotated.edges + base_offset
+            # Translate the shape to its position
+            positioned = rotated.translate(base_offset)
 
             # Use jittered color for variety
-            color = rotated.jittered_color(jitter_amount=15)
+            color = positioned.jittered_color(jitter_amount=15)
 
-            plot_shape(fig, shifted_nodes, shifted_edges,
+            plot_shape(fig, positioned.nodes, positioned.edges,
                       node_color=color, edge_color=color)
 
     fig.show()
@@ -376,38 +561,51 @@ def test_plot_gizmos_rotations():
 
 def test_plot_sprockets_rotations():
     """Visual test: Plot all rotations of SPROCKETS shapes."""
-    # Calculate grid size needed
-    num_shapes = len(SPROCKETS)
     shapes_per_row = 2
+    rots_per_row = 3  # 3 rotations per row within each shape
 
-    fig = plot_hex_grid(12, 15)
+    # Calculate maximum bounding box size for all rotations of all shapes
+    max_width = 0
+    max_height = 0
+    for shape in SPROCKETS:
+        for rotated in shape.originated_rotations():
+            min_c, max_c = rotated.bounding_box()
+            width = max_c[0] - min_c[0] + 1
+            height = max_c[1] - min_c[1] + 1
+            max_width = max(max_width, width)
+            max_height = max(max_height, height)
+
+    # Calculate grid size
+    grid_width = shapes_per_row * rots_per_row * (max_width + 1) + 2
+    grid_height = ((len(SPROCKETS) + shapes_per_row - 1) // shapes_per_row) * 2 * (max_height + 1) + 2
+
+    fig = plot_hex_grid(grid_width, grid_height)
 
     for shape_idx, shape in enumerate(SPROCKETS):
-        rotations = shape.rotations()
+        originated_rots = shape.originated_rotations()
 
-        # Calculate base offset for this shape
+        # Calculate base offset for this shape's block
         shape_row = shape_idx // shapes_per_row
         shape_col = shape_idx % shapes_per_row
 
-        for rot_idx, rotated in enumerate(rotations):
-            # Position within the shape's grid
-            rot_row = rot_idx // 3
-            rot_col = rot_idx % 3
+        for rot_idx, rotated in enumerate(originated_rots):
+            # Position within the shape's grid (2 rows, 3 cols)
+            rot_row = rot_idx // rots_per_row
+            rot_col = rot_idx % rots_per_row
 
             # Calculate global offset
             base_offset = np.array([
-                shape_col * 6 + rot_col * 2,
-                shape_row * 8 + rot_row * 4
+                shape_col * rots_per_row * (max_width + 1) + rot_col * (max_width + 1),
+                shape_row * 2 * (max_height + 1) + rot_row * (max_height + 1)
             ])
 
-            # Shift all nodes and edges
-            shifted_nodes = rotated.nodes + base_offset
-            shifted_edges = rotated.edges + base_offset
+            # Translate the shape to its position
+            positioned = rotated.translate(base_offset)
 
             # Use jittered color for variety
-            color = rotated.jittered_color(jitter_amount=15)
+            color = positioned.jittered_color(jitter_amount=15)
 
-            plot_shape(fig, shifted_nodes, shifted_edges,
+            plot_shape(fig, positioned.nodes, positioned.edges,
                       node_color=color, edge_color=color)
 
     fig.show()
