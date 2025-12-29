@@ -58,7 +58,9 @@ class Shape:
         )
         rows = []
         for i in range(height):
-            offset = np.array([-i, i], dtype=int)
+            vertical_offset = i
+            horzontal_offset = -i
+            offset = np.array([horzontal_offset, vertical_offset], dtype=int)
             rows.append(row_nodes + offset)
         nodes = np.concatenate(rows, axis=0)
         if mean_color is None:
