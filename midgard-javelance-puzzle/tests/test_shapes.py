@@ -471,15 +471,128 @@ def test_originated_rotations_preserve_color():
         assert rotated.mean_color == shape.mean_color
 
 
+def test_equivalent_same_shape():
+    """Test that a shape is equivalent to itself."""
+    nodes = np.array([[1, 2], [2, 2], [2, 3]])
+    edges = np.array([[[1, 2], [2, 2]], [[2, 2], [2, 3]]])
+    shape1 = Shape(nodes=nodes, edges=edges)
+    shape2 = Shape(nodes=nodes, edges=edges)
+
+    assert shape1.equivalent(shape2)
+
+
+def test_equivalent_translated_shapes():
+    """Test that translated versions of a shape are equivalent."""
+    nodes = np.array([[0, 0], [1, 0], [1, 1]])
+    edges = np.array([[[0, 0], [1, 0]], [[1, 0], [1, 1]]])
+    shape1 = Shape(nodes=nodes, edges=edges)
+
+    # Translate the shape
+    shape2 = shape1.translate(np.array([5, 3]))
+
+    # They should be equivalent (after origination)
+    assert shape1.equivalent(shape2)
+
+
+def test_equivalent_different_node_order():
+    """Test that shapes with same nodes in different order are equivalent."""
+    nodes1 = np.array([[0, 0], [1, 0], [1, 1]])
+    nodes2 = np.array([[1, 1], [0, 0], [1, 0]])  # Same nodes, different order
+    edges1 = np.array([[[0, 0], [1, 0]], [[1, 0], [1, 1]]])
+    edges2 = np.array([[[1, 0], [1, 1]], [[0, 0], [1, 0]]])  # Same edges, different order
+
+    shape1 = Shape(nodes=nodes1, edges=edges1)
+    shape2 = Shape(nodes=nodes2, edges=edges2)
+
+    assert shape1.equivalent(shape2)
+
+
+def test_not_equivalent_different_nodes():
+    """Test that shapes with different nodes are not equivalent."""
+    nodes1 = np.array([[0, 0], [1, 0]])
+    nodes2 = np.array([[0, 0], [0, 1]])  # Different second node
+    edges1 = np.array([[[0, 0], [1, 0]]])
+    edges2 = np.array([[[0, 0], [0, 1]]])
+
+    shape1 = Shape(nodes=nodes1, edges=edges1)
+    shape2 = Shape(nodes=nodes2, edges=edges2)
+
+    assert not shape1.equivalent(shape2)
+
+
+def test_not_equivalent_different_edges():
+    """Test that shapes with same nodes but different edges are not equivalent."""
+    nodes = np.array([[0, 0], [1, 0], [0, 1]])
+    edges1 = np.array([[[0, 0], [1, 0]]])
+    edges2 = np.array([[[0, 0], [0, 1]]])
+
+    shape1 = Shape(nodes=nodes, edges=edges1)
+    shape2 = Shape(nodes=nodes, edges=edges2)
+
+    assert not shape1.equivalent(shape2)
+
+
+def test_unique_originated_rotations_no_symmetry():
+    """Test unique_originated_rotations with asymmetric shape (should return 6)."""
+    # Create an L-shaped pattern with no rotational symmetry
+    nodes = np.array([[0, 0], [1, 0], [0, 1]])
+    edges = np.array([[[0, 0], [1, 0]], [[0, 0], [0, 1]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    unique_rots = shape.unique_originated_rotations()
+
+    # Asymmetric shape should have 6 unique rotations
+    assert len(unique_rots) == 6
+
+
+def test_unique_originated_rotations_with_symmetry():
+    """Test unique_originated_rotations with symmetric shape (should return fewer than 6)."""
+    # Create a line of 2 hexagons (180° rotational symmetry)
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    unique_rots = shape.unique_originated_rotations()
+
+    # Line has 180° symmetry, so should have only 3 unique rotations
+    assert len(unique_rots) == 3
+
+
+def test_unique_originated_rotations_all_unique():
+    """Test that all returned rotations are actually unique."""
+    nodes = np.array([[0, 0], [1, 0], [0, 1]])
+    edges = np.array([[[0, 0], [1, 0]], [[0, 0], [0, 1]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    unique_rots = shape.unique_originated_rotations()
+
+    # Check that no two rotations are equivalent to each other
+    for i in range(len(unique_rots)):
+        for j in range(i + 1, len(unique_rots)):
+            assert not unique_rots[i].equivalent(unique_rots[j]),                 f"Rotations {i} and {j} are equivalent but both in unique list"
+
+
+def test_unique_originated_rotations_preserve_color():
+    """Test that unique_originated_rotations preserves mean_color."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="cyan")
+
+    unique_rots = shape.unique_originated_rotations()
+
+    for rotated in unique_rots:
+        assert rotated.mean_color == shape.mean_color
+
+
 def test_plot_doodads_rotations():
     """Visual test: Plot all rotations of DOODADS shapes."""
     fig = plot_hex_grid(25, 15)
 
     for shape_idx, shape in enumerate(DOODADS):
-        originated_rots = shape.originated_rotations()
+        unique_rots = shape.unique_originated_rotations()
 
         # Arrange rotations in a 2x3 grid
-        for rot_idx, rotated in enumerate(originated_rots):
+        for rot_idx, rotated in enumerate(unique_rots):
             # Calculate offset for this rotation
             row = rot_idx // 3
             col = rot_idx % 3
@@ -516,7 +629,7 @@ def test_plot_gizmos_rotations():
     max_width = 0
     max_height = 0
     for shape in GIZMOS:
-        for rotated in shape.originated_rotations():
+        for rotated in shape.unique_originated_rotations():
             min_c, max_c = rotated.bounding_box()
             width = max_c[0] - min_c[0] + 1
             height = max_c[1] - min_c[1] + 1
@@ -530,13 +643,13 @@ def test_plot_gizmos_rotations():
     fig = plot_hex_grid(grid_width, grid_height)
 
     for shape_idx, shape in enumerate(GIZMOS):
-        originated_rots = shape.originated_rotations()
+        unique_rots = shape.unique_originated_rotations()
 
         # Calculate base offset for this shape's block
         shape_row = shape_idx // shapes_per_row
         shape_col = shape_idx % shapes_per_row
 
-        for rot_idx, rotated in enumerate(originated_rots):
+        for rot_idx, rotated in enumerate(unique_rots):
             # Position within the shape's grid (2 rows, 3 cols)
             rot_row = rot_idx // rots_per_row
             rot_col = rot_idx % rots_per_row
@@ -568,7 +681,7 @@ def test_plot_sprockets_rotations():
     max_width = 0
     max_height = 0
     for shape in SPROCKETS:
-        for rotated in shape.originated_rotations():
+        for rotated in shape.unique_originated_rotations():
             min_c, max_c = rotated.bounding_box()
             width = max_c[0] - min_c[0] + 1
             height = max_c[1] - min_c[1] + 1
@@ -582,13 +695,13 @@ def test_plot_sprockets_rotations():
     fig = plot_hex_grid(grid_width, grid_height)
 
     for shape_idx, shape in enumerate(SPROCKETS):
-        originated_rots = shape.originated_rotations()
+        unique_rots = shape.unique_originated_rotations()
 
         # Calculate base offset for this shape's block
         shape_row = shape_idx // shapes_per_row
         shape_col = shape_idx % shapes_per_row
 
-        for rot_idx, rotated in enumerate(originated_rots):
+        for rot_idx, rotated in enumerate(unique_rots):
             # Position within the shape's grid (2 rows, 3 cols)
             rot_row = rot_idx // rots_per_row
             rot_col = rot_idx % rots_per_row

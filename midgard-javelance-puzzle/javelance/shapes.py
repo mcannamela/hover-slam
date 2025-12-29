@@ -108,6 +108,57 @@ class Shape:
         """Return all rotations of the shape, but shifted such that all node coordinates are positive"""
         return [x.originated() for x in self.rotations()]
 
+    def equivalent(self, other: Self) -> bool:
+        """
+        Check if two shapes are equivalent (same nodes and edges after origination).
+
+        Two shapes are considered equivalent if their originated versions have
+        the same set of nodes and the same set of edges.
+        """
+        # Origin both shapes
+        self_originated = self.originated()
+        other_originated = other.originated()
+
+        # Check if nodes are the same (as sets, order doesn't matter)
+        self_nodes_set = set(map(tuple, self_originated.nodes))
+        other_nodes_set = set(map(tuple, other_originated.nodes))
+
+        if self_nodes_set != other_nodes_set:
+            return False
+
+        # Check if edges are the same (as sets, order doesn't matter)
+        # Normalize each edge by sorting its two hexes
+        def normalize_edge(edge):
+            return tuple(sorted([tuple(edge[0]), tuple(edge[1])]))
+
+        self_edges_set = set(normalize_edge(edge) for edge in self_originated.edges)
+        other_edges_set = set(normalize_edge(edge) for edge in other_originated.edges)
+
+        return self_edges_set == other_edges_set
+
+    def unique_originated_rotations(self) -> list[Self]:
+        """
+        Return only unique rotations of the shape (after origination).
+
+        Shapes with rotational symmetry may have fewer than 6 unique rotations.
+        This method filters out duplicates using the equivalent() method.
+        """
+        originated_rots = self.originated_rotations()
+        unique_rots = []
+
+        for rot in originated_rots:
+            # Check if this rotation is equivalent to any already found
+            is_duplicate = False
+            for unique_rot in unique_rots:
+                if rot.equivalent(unique_rot):
+                    is_duplicate = True
+                    break
+
+            if not is_duplicate:
+                unique_rots.append(rot)
+
+        return unique_rots
+
     def originated(self):
         """Shift the shape such that the minimum address for both coordinates is 0"""
         displacement = -np.min(self.nodes, axis=0, keepdims=True)
