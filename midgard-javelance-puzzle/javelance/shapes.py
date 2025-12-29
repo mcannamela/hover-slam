@@ -290,7 +290,7 @@ DOODADS = [
                 [[1, 4], [2, 3]],
             ]
         ),
-        mean_color="chartreuse",
+        mean_color="DarkGreen",
     )
 ]
 
@@ -333,7 +333,7 @@ GIZMOS = [
                 [[1, 4], [2, 3]],
             ]
         ),
-        mean_color="yellow",
+        mean_color="DarkGoldenRod",
     ),
     Shape(
         nodes=np.array(

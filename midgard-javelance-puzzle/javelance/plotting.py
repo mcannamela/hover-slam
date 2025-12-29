@@ -1,5 +1,9 @@
 import numpy as np
 import plotly.graph_objects as go
+import plotly.io as pio
+
+# Set default renderer to always open plots in browser
+pio.renderers.default = "browser"
 
 
 def plot_hex_grid(I, J, hex_size=1.0, exclude=None):
