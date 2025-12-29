@@ -1184,7 +1184,7 @@ def test_edges_full_single_node():
 
 def test_plot_javelance():
     """Visual test: Plot JAVELANCE_PROTO and JAVELANCE shapes."""
-    from javelance.shapes import JAVELANCE_PROTO, JAVELANCE
+    from javelance.shapes import JAVELANCE_FORBIDDEN, JAVELANCE
 
     # Create a grid large enough for both shapes
     fig = plot_hex_grid(50, 25)
@@ -1192,14 +1192,14 @@ def test_plot_javelance():
     # Plot JAVELANCE_PROTO on the left
     plot_shape(
         fig,
-        JAVELANCE_PROTO.nodes,
-        JAVELANCE_PROTO.edges,
-        node_color=JAVELANCE_PROTO.mean_color,
-        edge_color=JAVELANCE_PROTO.mean_color,
+        JAVELANCE_FORBIDDEN.nodes,
+        JAVELANCE_FORBIDDEN.edges,
+        node_color=JAVELANCE_FORBIDDEN.mean_color,
+        edge_color=JAVELANCE_FORBIDDEN.mean_color,
     )
 
     # Plot JAVELANCE on the right (offset by 25 in x direction)
-    javelance_offset = JAVELANCE.translate(np.array([25, 0]))
+    javelance_offset = JAVELANCE.translate(np.array([0, 0]))
     plot_shape(
         fig,
         javelance_offset.nodes,

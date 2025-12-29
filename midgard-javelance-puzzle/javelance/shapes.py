@@ -168,7 +168,8 @@ class Shape:
         """Set of all valid edges that can be made from this shape's nodes"""
         nodes = self.node_set()
         adjacent_nodes = {
-            n: self.as_node_set(self.adjacent_nodes(np.array([n]))) & nodes for n in nodes
+            n: self.as_node_set(self.adjacent_nodes(np.array([n]))) & nodes
+            for n in nodes
         }
         edges = set()
         for n, adj in adjacent_nodes.items():
@@ -561,6 +562,7 @@ SPROCKETS = [
 ]
 
 JAVELANCE_COLOR = "Bisque"
+JAVELANCE_FORBIDDEN_COLOR = "LightPink"
 JAVELANCE_VBOX = Shape.vertical_box(width=22, height=11, mean_color=JAVELANCE_COLOR)
 JAVELANCE_FORBIDDEN_NODES = {
     (0, 0),
@@ -581,16 +583,14 @@ JAVELANCE_FORBIDDEN_NODES = {
     (-1, 7),
 }
 
-JAVELANCE_PROTO = JAVELANCE_VBOX.difference(
+JAVELANCE = JAVELANCE_VBOX.difference(
     Shape.from_sets(nodes=JAVELANCE_FORBIDDEN_NODES, edges=set())
 )
 
-JAVELANCE_FORBIDDEN_EDGES = (
-    JAVELANCE_PROTO.adjacent().difference(JAVELANCE_PROTO).edges_full()
-)
+JAVELANCE_FORBIDDEN_EDGES = JAVELANCE.adjacent().difference(JAVELANCE).edges_full()
 
-JAVELANCE = Shape.from_sets(
-    nodes=JAVELANCE_PROTO.node_set(),
-    edges=JAVELANCE_PROTO.edge_set() - JAVELANCE_FORBIDDEN_EDGES,
-    mean_color=JAVELANCE_COLOR,
+JAVELANCE_FORBIDDEN = Shape.from_sets(
+    nodes=JAVELANCE_FORBIDDEN_NODES,
+    edges=JAVELANCE_FORBIDDEN_EDGES,
+    mean_color=JAVELANCE_FORBIDDEN_COLOR,
 )
