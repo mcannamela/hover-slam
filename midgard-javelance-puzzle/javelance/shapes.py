@@ -1,3 +1,5 @@
+import functools
+import operator
 from dataclasses import dataclass
 from typing import Self, Any
 
@@ -579,25 +581,47 @@ SPROCKETS = [
 
 JAVELANCE_COLOR = "Bisque"
 JAVELANCE_FORBIDDEN_COLOR = "LightPink"
-JAVELANCE_VBOX = Shape.vertical_box(width=22, height=11, mean_color=JAVELANCE_COLOR)
-JAVELANCE_FORBIDDEN_NODES = {
-    (0, 0),
-    (1, 0),
-    (2, 0),
-    (3, 0),
-    (7, 0),
-    (8, 0),
-    (10, 0),
-    (11, 0),
-    (19, 0),
-    (20, 0),
-    (21, 0),
-    (-1, 1),
-    (-1, 0),
-    (-1, 1),
-    (-1, 2),
-    (-1, 7),
-}
+JAVELANCE_VBOX = Shape.vertical_box(width=20, height=11, mean_color=JAVELANCE_COLOR)
+JAVELANCE_FORBIDDEN_NODES = functools.reduce(
+    operator.or_,
+    [
+        {(x, y) for x in xx}
+        for y, xx in [
+            {
+                0: [
+                    0,
+                    1,
+                    2,
+                    3,
+                    7,
+                    8,
+                    10,
+                    11,
+                    19,
+                    20,
+                ]
+            },
+            {1: [-1, 0, 1, 2, 3, 7]},
+            {2: [-1, 0, 1, 13]},
+            {
+                3: [
+                    -1,
+                    1,
+                    12,
+                ]
+            },
+            {4: []},
+            {5: []},
+            {6: []},
+            {7: []},
+            {8: []},
+            {9: []},
+            {10: []},
+            {11: []},
+        ]
+    ],
+    set,
+)
 
 JAVELANCE = JAVELANCE_VBOX.difference(
     Shape.from_sets(nodes=JAVELANCE_FORBIDDEN_NODES, edges=set())

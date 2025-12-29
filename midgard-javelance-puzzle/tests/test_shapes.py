@@ -1212,6 +1212,120 @@ def test_interior_edges_single_node():
     assert full_edges == set()
 
 
+def test_boundary_edges_single_node():
+    """Test boundary_edges for a single node."""
+    nodes = np.array([[0, 0]])
+    edges = np.empty((0, 2, 2), dtype=int)
+    shape = Shape(nodes=nodes, edges=edges)
+
+    boundary = shape.boundary_edges()
+
+    # A single node has 6 boundary edges (all adjacent positions)
+    assert len(boundary) == 6
+
+    # All boundary edges should have (0,0) as one endpoint
+    for edge in boundary:
+        assert (0, 0) in edge
+
+
+def test_boundary_edges_line():
+    """Test boundary_edges for a horizontal line."""
+    # Three nodes in a line: (0,0) - (1,0) - (2,0)
+    nodes = np.array([[0, 0], [1, 0], [2, 0]])
+    edges = np.empty((0, 2, 2), dtype=int)
+    shape = Shape(nodes=nodes, edges=edges)
+
+    boundary = shape.boundary_edges()
+
+    # Interior edges (between nodes in the shape) should NOT be in boundary
+    interior = shape.interior_edges()
+    assert interior & boundary == set()  # No overlap
+
+    # Boundary should include edges to nodes outside the line
+    # For (0,0): 5 boundary edges (all except to (1,0))
+    # For (1,0): 4 boundary edges (all except to (0,0) and (2,0))
+    # For (2,0): 5 boundary edges (all except to (1,0))
+    # Total: 14 boundary edges
+    assert len(boundary) == 14
+
+
+def test_boundary_edges_box():
+    """Test boundary_edges for a 2x2 box."""
+    shape = Shape.box(width=2, height=2)
+
+    boundary = shape.boundary_edges()
+    interior = shape.interior_edges()
+
+    # Interior and boundary should be disjoint
+    assert interior & boundary == set()
+
+    # All boundary edges should have exactly one node in the shape
+    shape_nodes = shape.node_set()
+    for edge in boundary:
+        node1, node2 = edge
+        # Exactly one node should be in shape
+        in_shape = (node1 in shape_nodes, node2 in shape_nodes)
+        assert in_shape == (True, False) or in_shape == (False, True)
+
+
+def test_boundary_edges_l_shape():
+    """Test boundary_edges for an L-shaped configuration."""
+    # L-shape: three nodes forming an L
+    nodes = np.array([[0, 0], [1, 0], [0, 1]])
+    edges = np.array([[[0, 0], [1, 0]], [[0, 0], [0, 1]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    boundary = shape.boundary_edges()
+    interior = shape.interior_edges()
+
+    # Interior should have 3 edges: (0,0)-(1,0), (0,0)-(0,1), and (0,1)-(1,0)
+    # Note: (0,1) and (1,0) are adjacent in a hex grid with offset (-1,1)
+    assert len(interior) == 3
+
+    # Boundary and interior should be disjoint
+    assert interior & boundary == set()
+
+    # Each node has 6 adjacent positions
+    # (0,0) has 2 interior edges to adjacent nodes, so 4 boundary edges
+    # (1,0) has 2 interior edges to adjacent nodes, so 4 boundary edges
+    # (0,1) has 2 interior edges to adjacent nodes, so 4 boundary edges
+    # Total: 12 boundary edges
+    assert len(boundary) == 12
+
+
+def test_boundary_edges_disjoint_from_interior():
+    """Test that boundary_edges and interior_edges are always disjoint."""
+    # Test with various shapes
+    shapes_to_test = [
+        Shape.box(width=3, height=3),
+        Shape.vertical_box(width=2, height=4),
+        Shape.box(width=1, height=1),  # Single node
+    ]
+
+    for shape in shapes_to_test:
+        boundary = shape.boundary_edges()
+        interior = shape.interior_edges()
+
+        # Should be disjoint
+        assert interior & boundary == set(), f"Failed for shape with {len(shape.nodes)} nodes"
+
+
+def test_boundary_edges_conservation():
+    """Test that boundary edges correctly represent the perimeter."""
+    # For a simple box, verify boundary edges form the perimeter
+    shape = Shape.box(width=3, height=2)
+
+    boundary = shape.boundary_edges()
+
+    # Each boundary edge should have exactly one endpoint in the shape
+    shape_nodes = shape.node_set()
+
+    for edge in boundary:
+        node1, node2 = edge
+        nodes_in_shape = sum([node1 in shape_nodes, node2 in shape_nodes])
+        assert nodes_in_shape == 1, f"Edge {edge} has {nodes_in_shape} nodes in shape"
+
+
 def test_plot_javelance():
     """Visual test: Plot JAVELANCE_PROTO and JAVELANCE shapes."""
     from javelance.shapes import JAVELANCE_FORBIDDEN, JAVELANCE
