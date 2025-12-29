@@ -3,6 +3,18 @@ from dataclasses import dataclass
 import numpy as np
 
 
+# Rotation matrices for hex grid transformations
+# Applied as coords @ matrix.T for rotations at 0°, 60°, 120°, 180°, 240°, 300°
+ROTATION_MATRICES = [
+    np.array([[1, 0], [0, 1]]),  # 0°
+    np.array([[0, -1], [1, 1]]),  # 60°
+    np.array([[-1, -1], [1, 0]]),  # 120°
+    np.array([[-1, 0], [0, -1]]),  # 180°
+    np.array([[0, 1], [-1, -1]]),  # 240°
+    np.array([[1, 1], [-1, 0]]),  # 300°
+]
+
+
 @dataclass
 class Shape:
     nodes: np.ndarray
@@ -13,7 +25,9 @@ class Shape:
         if self.nodes.ndim != 2:
             raise ValueError(f"nodes must be a 2D array, got {self.nodes.ndim}D")
         if self.nodes.shape[1] != 2:
-            raise ValueError(f"nodes must have size 2 in dimension 1, got {self.nodes.shape[1]}")
+            raise ValueError(
+                f"nodes must have size 2 in dimension 1, got {self.nodes.shape[1]}"
+            )
 
         # ensure that nodes has integer type
         if not np.issubdtype(self.nodes.dtype, np.integer):
@@ -23,9 +37,13 @@ class Shape:
         if self.edges.ndim != 3:
             raise ValueError(f"edges must be a 3D array, got {self.edges.ndim}D")
         if self.edges.shape[1] != 2:
-            raise ValueError(f"edges must have size 2 in dimension 1, got {self.edges.shape[1]}")
+            raise ValueError(
+                f"edges must have size 2 in dimension 1, got {self.edges.shape[1]}"
+            )
         if self.edges.shape[2] != 2:
-            raise ValueError(f"edges must have size 2 in dimension 2, got {self.edges.shape[2]}")
+            raise ValueError(
+                f"edges must have size 2 in dimension 2, got {self.edges.shape[2]}"
+            )
 
         # ensure that edges has integer type
         if not np.issubdtype(self.edges.dtype, np.integer):
@@ -75,19 +93,9 @@ class Shape:
         - 240°: (i, j) -> (j, -i-j)
         - 300°: (i, j) -> (i+j, -i)
         """
-        # Rotation matrices for hex grid (applied as coords @ matrix.T)
-        rotation_matrices = [
-            np.array([[1, 0], [0, 1]]),      # 0°
-            np.array([[0, -1], [1, 1]]),     # 60°
-            np.array([[-1, -1], [1, 0]]),    # 120°
-            np.array([[-1, 0], [0, -1]]),    # 180°
-            np.array([[0, 1], [-1, -1]]),    # 240°
-            np.array([[1, 1], [-1, 0]]),     # 300°
-        ]
-
         rotated_shapes = []
 
-        for matrix in rotation_matrices:
+        for matrix in ROTATION_MATRICES:
             # Rotate all nodes using matrix multiplication
             rotated_nodes = self.nodes @ matrix.T
 
@@ -111,7 +119,7 @@ DOODADS = [
             [
                 [0, 0],
                 [4, 0],
-                [2, 1],
+                [2, 1],  # in every derived shape
                 [2, 4],
             ]
         ),
@@ -128,4 +136,109 @@ DOODADS = [
             ]
         ),
     )
+]
+
+GIZMOS = [
+    Shape(
+        nodes=np.array(
+            [
+                [4, 0],
+                [2, 1],  # in every derived shape
+                [2, 4],
+            ]
+        ),
+        edges=np.array(
+            [
+                [[3, 0], [3, 1]],
+                [[1, 2], [2, 2]],
+                [[1, 3], [2, 2]],
+                [[1, 3], [2, 3]],
+                [[1, 4], [2, 3]],
+            ]
+        ),
+    ),
+    Shape(
+        nodes=np.array(
+            [
+                [0, 0],
+                [2, 1],  # in every derived shape
+                [2, 4],
+            ]
+        ),
+        edges=np.array(
+            [
+                [[1, 0], [0, 1]],
+                [[1, 0], [1, 1]],
+                [[2, 0], [1, 1]],
+                [[1, 2], [2, 2]],
+                [[1, 3], [2, 2]],
+                [[1, 3], [2, 3]],
+                [[1, 4], [2, 3]],
+            ]
+        ),
+    ),
+    Shape(
+        nodes=np.array(
+            [
+                [0, 0],
+                [4, 0],
+                [2, 1],  # in every derived shape
+            ]
+        ),
+        edges=np.array(
+            [
+                [[1, 0], [0, 1]],
+                [[1, 0], [1, 1]],
+                [[2, 0], [1, 1]],
+                [[3, 0], [3, 1]],
+            ]
+        ),
+    ),
+]
+
+SPROCKETS = [
+    Shape(
+        nodes=np.array(
+            [
+                [2, 1],  # in every derived shape
+                [2, 4],
+            ]
+        ),
+        edges=np.array(
+            [
+                [[1, 2], [2, 2]],
+                [[1, 3], [2, 2]],
+                [[1, 3], [2, 3]],
+                [[1, 4], [2, 3]],
+            ]
+        ),
+    ),
+    Shape(
+        nodes=np.array(
+            [
+                [4, 0],
+                [2, 1],  # in every derived shape
+            ]
+        ),
+        edges=np.array(
+            [
+                [[3, 0], [3, 1]],
+            ]
+        ),
+    ),
+    Shape(
+        nodes=np.array(
+            [
+                [0, 0],
+                [2, 1],  # in every derived shape
+            ]
+        ),
+        edges=np.array(
+            [
+                [[1, 0], [0, 1]],
+                [[1, 0], [1, 1]],
+                [[2, 0], [1, 1]],
+            ]
+        ),
+    ),
 ]
