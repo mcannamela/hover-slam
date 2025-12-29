@@ -65,7 +65,16 @@ class Shape:
 
     def negative_nodes(self) -> Self:
         """Return a Shape with all the nodes in this Shape's bounding_box that are not in the Shape and no edges"""
-        return self.box(mean_color=self.mean_color).difference(self)
+        return self.bounding_box().difference(self)
+
+    def bounding_box(self) -> Self:
+        """A Shape that contains all the nodes between the bounding addresses of this Shape"""
+        min_address, max_address = self.bounding_addresses()
+        width = max_address[0] - min_address[0] + 1
+        height = max_address[1] - min_address[1] + 1
+        return Shape.box(
+            width=width, height=height, mean_color=self.mean_color
+        ).translate(min_address)
 
     def difference(self, other: Self) -> Self:
         """The shape whose node and edge sets are the set difference of this shape and the other shape's sets."""
@@ -81,84 +90,7 @@ class Shape:
         """This Shape's edges as a set, normalized so that the nodes comprising the edge are ordered"""
         pass
 
-    def __post_init__(self):
-        # Convert named colors to rgb format before validation
-        color_str = self.mean_color.strip()
-        if not (self._is_rgb_str(color_str) or self._is_rgba_str(color_str)):
-            # Assume it's a named color and try to convert it
-            try:
-                # matplotlib's to_rgb returns tuple of floats in [0, 1] range
-                rgb_tuple = mcolors.to_rgb(color_str)
-                # Convert to 0-255 range
-                r = int(rgb_tuple[0] * 255)
-                g = int(rgb_tuple[1] * 255)
-                b = int(rgb_tuple[2] * 255)
-                # Set mean_color to rgb format
-                self.mean_color = f"rgb({r}, {g}, {b})"
-            except ValueError as e:
-                # If conversion fails, let the validation method handle it
-                pass
-
-        self._raise_if_color_str_invalid()
-
-        # ensure that nodes is a 2d array where dimension 1 has size 2
-        if self.nodes.ndim != 2:
-            raise ValueError(f"nodes must be a 2D array, got {self.nodes.ndim}D")
-        if self.nodes.shape[1] != 2:
-            raise ValueError(
-                f"nodes must have size 2 in dimension 1, got {self.nodes.shape[1]}"
-            )
-
-        # ensure that nodes has integer type
-        if not np.issubdtype(self.nodes.dtype, np.integer):
-            raise ValueError(f"nodes must have integer type, got {self.nodes.dtype}")
-
-        # ensure that edges is a 3d array where dimensions 1 and 2 both have size 2
-        if self.edges.ndim != 3:
-            raise ValueError(f"edges must be a 3D array, got {self.edges.ndim}D")
-        if self.edges.shape[1] != 2:
-            raise ValueError(
-                f"edges must have size 2 in dimension 1, got {self.edges.shape[1]}"
-            )
-        if self.edges.shape[2] != 2:
-            raise ValueError(
-                f"edges must have size 2 in dimension 2, got {self.edges.shape[2]}"
-            )
-
-        # ensure that edges has integer type
-        if not np.issubdtype(self.edges.dtype, np.integer):
-            raise ValueError(f"edges must have integer type, got {self.edges.dtype}")
-
-        # raise if any nodes or edges are duplicated
-        nodes_set = set(map(tuple, self.nodes))
-        if len(nodes_set) != len(self.nodes):
-            raise ValueError("Duplicate nodes found")
-
-        edges_set = set()
-        for edge in self.edges:
-            # Normalize edge representation (sort the two hexes to make comparison order-independent)
-            edge_tuple = tuple(sorted([tuple(edge[0]), tuple(edge[1])]))
-            if edge_tuple in edges_set:
-                raise ValueError(f"Duplicate edge found: {edge}")
-            edges_set.add(edge_tuple)
-
-        # verify that all edges are valid i.e. the 2 hexes they address are adjacent
-        # Valid adjacency offsets for pointy-top hexagons
-        valid_offsets = {(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)}
-
-        for edge in self.edges:
-            hex1 = edge[0]
-            hex2 = edge[1]
-            di = hex2[0] - hex1[0]
-            dj = hex2[1] - hex1[1]
-            offset = (di, dj)
-
-            if offset not in valid_offsets:
-                raise ValueError(
-                    f"Invalid edge: hexagons {hex1} and {hex2} are not adjacent (offset {offset})"
-                )
-
-    def bounding_box(self) -> tuple[np.ndarray, np.ndarray]:
+    def bounding_addresses(self) -> tuple[np.ndarray, np.ndarray]:
         """Return the hexes whose coordinates are the lower and upper bounds of all nodes in the shape"""
         return self.nodes.min(axis=0), self.nodes.max(axis=0)
 
@@ -291,6 +223,83 @@ class Shape:
         b_jittered = np.clip(b_jittered, 0, 255)
 
         return f"rgb({r_jittered}, {g_jittered}, {b_jittered})"
+
+    def __post_init__(self):
+        # Convert named colors to rgb format before validation
+        color_str = self.mean_color.strip()
+        if not (self._is_rgb_str(color_str) or self._is_rgba_str(color_str)):
+            # Assume it's a named color and try to convert it
+            try:
+                # matplotlib's to_rgb returns tuple of floats in [0, 1] range
+                rgb_tuple = mcolors.to_rgb(color_str)
+                # Convert to 0-255 range
+                r = int(rgb_tuple[0] * 255)
+                g = int(rgb_tuple[1] * 255)
+                b = int(rgb_tuple[2] * 255)
+                # Set mean_color to rgb format
+                self.mean_color = f"rgb({r}, {g}, {b})"
+            except ValueError as e:
+                # If conversion fails, let the validation method handle it
+                pass
+
+        self._raise_if_color_str_invalid()
+
+        # ensure that nodes is a 2d array where dimension 1 has size 2
+        if self.nodes.ndim != 2:
+            raise ValueError(f"nodes must be a 2D array, got {self.nodes.ndim}D")
+        if self.nodes.shape[1] != 2:
+            raise ValueError(
+                f"nodes must have size 2 in dimension 1, got {self.nodes.shape[1]}"
+            )
+
+        # ensure that nodes has integer type
+        if not np.issubdtype(self.nodes.dtype, np.integer):
+            raise ValueError(f"nodes must have integer type, got {self.nodes.dtype}")
+
+        # ensure that edges is a 3d array where dimensions 1 and 2 both have size 2
+        if self.edges.ndim != 3:
+            raise ValueError(f"edges must be a 3D array, got {self.edges.ndim}D")
+        if self.edges.shape[1] != 2:
+            raise ValueError(
+                f"edges must have size 2 in dimension 1, got {self.edges.shape[1]}"
+            )
+        if self.edges.shape[2] != 2:
+            raise ValueError(
+                f"edges must have size 2 in dimension 2, got {self.edges.shape[2]}"
+            )
+
+        # ensure that edges has integer type
+        if not np.issubdtype(self.edges.dtype, np.integer):
+            raise ValueError(f"edges must have integer type, got {self.edges.dtype}")
+
+        # raise if any nodes or edges are duplicated
+        nodes_set = set(map(tuple, self.nodes))
+        if len(nodes_set) != len(self.nodes):
+            raise ValueError("Duplicate nodes found")
+
+        edges_set = set()
+        for edge in self.edges:
+            # Normalize edge representation (sort the two hexes to make comparison order-independent)
+            edge_tuple = tuple(sorted([tuple(edge[0]), tuple(edge[1])]))
+            if edge_tuple in edges_set:
+                raise ValueError(f"Duplicate edge found: {edge}")
+            edges_set.add(edge_tuple)
+
+        # verify that all edges are valid i.e. the 2 hexes they address are adjacent
+        # Valid adjacency offsets for pointy-top hexagons
+        valid_offsets = {(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)}
+
+        for edge in self.edges:
+            hex1 = edge[0]
+            hex2 = edge[1]
+            di = hex2[0] - hex1[0]
+            dj = hex2[1] - hex1[1]
+            offset = (di, dj)
+
+            if offset not in valid_offsets:
+                raise ValueError(
+                    f"Invalid edge: hexagons {hex1} and {hex2} are not adjacent (offset {offset})"
+                )
 
     def _parse_color(self) -> tuple[int, int, int]:
         # Parse the mean color to extract RGB values

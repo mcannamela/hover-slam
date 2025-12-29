@@ -89,10 +89,12 @@ def test_duplicate_nodes():
 def test_duplicate_edges():
     """Test that duplicate edges are not allowed."""
     nodes = np.array([[0, 0], [1, 0], [2, 0]])
-    edges = np.array([
-        [[0, 0], [1, 0]],
-        [[1, 0], [0, 0]],  # Same edge as above, just reversed
-    ])
+    edges = np.array(
+        [
+            [[0, 0], [1, 0]],
+            [[1, 0], [0, 0]],  # Same edge as above, just reversed
+        ]
+    )
 
     with pytest.raises(ValueError, match="Duplicate edge found"):
         Shape(nodes=nodes, edges=edges)
@@ -202,7 +204,7 @@ def test_shape_has_mean_color():
     edges = np.array([[[0, 0], [1, 0]]])
     shape = Shape(nodes=nodes, edges=edges)
 
-    assert hasattr(shape, 'mean_color')
+    assert hasattr(shape, "mean_color")
     assert shape.mean_color == "rgb(128, 128, 128)"
 
 
@@ -306,25 +308,25 @@ def test_rotations_preserve_mean_color():
         assert rotated.mean_color == "rgb(100, 150, 200)"
 
 
-def test_bounding_box():
-    """Test that bounding_box returns correct min and max coordinates."""
+def test_bounding_addresses():
+    """Test that bounding_addresses returns correct min and max coordinates."""
     nodes = np.array([[1, 2], [5, 3], [2, 7]])
     edges = np.empty((0, 2, 2), dtype=int)
     shape = Shape(nodes=nodes, edges=edges)
 
-    min_coords, max_coords = shape.bounding_box()
+    min_coords, max_coords = shape.bounding_addresses()
 
     assert np.array_equal(min_coords, np.array([1, 2]))
     assert np.array_equal(max_coords, np.array([5, 7]))
 
 
-def test_bounding_box_single_node():
-    """Test bounding_box with a single node."""
+def test_bounding_addresses_single_node():
+    """Test bounding_addresses with a single node."""
     nodes = np.array([[3, 4]])
     edges = np.empty((0, 2, 2), dtype=int)
     shape = Shape(nodes=nodes, edges=edges)
 
-    min_coords, max_coords = shape.bounding_box()
+    min_coords, max_coords = shape.bounding_addresses()
 
     assert np.array_equal(min_coords, np.array([3, 4]))
     assert np.array_equal(max_coords, np.array([3, 4]))
@@ -397,7 +399,7 @@ def test_originated():
     originated = shape.originated()
 
     # Minimum should be [0, 0]
-    min_coords, _ = originated.bounding_box()
+    min_coords, _ = originated.bounding_addresses()
     assert np.array_equal(min_coords, np.array([0, 0]))
 
     # Shape should be shifted by -[3, 5]
@@ -427,7 +429,7 @@ def test_originated_with_negative_coords():
     originated = shape.originated()
 
     # Minimum should be [0, 0]
-    min_coords, _ = originated.bounding_box()
+    min_coords, _ = originated.bounding_addresses()
     assert np.array_equal(min_coords, np.array([0, 0]))
 
     # Shape should be shifted by -[-5, -3] = [5, 3]
@@ -455,8 +457,10 @@ def test_originated_rotations_all_at_origin():
     originated_rots = shape.originated_rotations()
 
     for rotated in originated_rots:
-        min_coords, _ = rotated.bounding_box()
-        assert np.array_equal(min_coords, np.array([0, 0])),             f"Rotation not at origin: min_coords = {min_coords}"
+        min_coords, _ = rotated.bounding_addresses()
+        assert np.array_equal(min_coords, np.array([0, 0])), (
+            f"Rotation not at origin: min_coords = {min_coords}"
+        )
 
 
 def test_originated_rotations_preserve_color():
@@ -499,7 +503,9 @@ def test_equivalent_different_node_order():
     nodes1 = np.array([[0, 0], [1, 0], [1, 1]])
     nodes2 = np.array([[1, 1], [0, 0], [1, 0]])  # Same nodes, different order
     edges1 = np.array([[[0, 0], [1, 0]], [[1, 0], [1, 1]]])
-    edges2 = np.array([[[1, 0], [1, 1]], [[0, 0], [1, 0]]])  # Same edges, different order
+    edges2 = np.array(
+        [[[1, 0], [1, 1]], [[0, 0], [1, 0]]]
+    )  # Same edges, different order
 
     shape1 = Shape(nodes=nodes1, edges=edges1)
     shape2 = Shape(nodes=nodes2, edges=edges2)
@@ -569,7 +575,9 @@ def test_unique_originated_rotations_all_unique():
     # Check that no two rotations are equivalent to each other
     for i in range(len(unique_rots)):
         for j in range(i + 1, len(unique_rots)):
-            assert not unique_rots[i].equivalent(unique_rots[j]),                 f"Rotations {i} and {j} are equivalent but both in unique list"
+            assert not unique_rots[i].equivalent(unique_rots[j]), (
+                f"Rotations {i} and {j} are equivalent but both in unique list"
+            )
 
 
 def test_unique_originated_rotations_preserve_color():
@@ -598,15 +606,12 @@ def test_plot_doodads_rotations():
             col = rot_idx % 3
 
             # Get bounding box to ensure proper spacing
-            min_coords, max_coords = rotated.bounding_box()
+            min_coords, max_coords = rotated.bounding_addresses()
             shape_width = max_coords[0] - min_coords[0] + 1
             shape_height = max_coords[1] - min_coords[1] + 1
 
             # Add 1 hex spacing between shapes
-            base_offset = np.array([
-                col * (shape_width + 1),
-                row * (shape_height + 1)
-            ])
+            base_offset = np.array([col * (shape_width + 1), row * (shape_height + 1)])
 
             # Translate the shape to its position
             positioned = rotated.translate(base_offset)
@@ -614,8 +619,13 @@ def test_plot_doodads_rotations():
             # Use jittered color for variety
             color = positioned.jittered_color(jitter_amount=15)
 
-            plot_shape(fig, positioned.nodes, positioned.edges,
-                      node_color=color, edge_color=color)
+            plot_shape(
+                fig,
+                positioned.nodes,
+                positioned.edges,
+                node_color=color,
+                edge_color=color,
+            )
 
     fig.show()
 
@@ -630,7 +640,7 @@ def test_plot_gizmos_rotations():
     max_height = 0
     for shape in GIZMOS:
         for rotated in shape.unique_originated_rotations():
-            min_c, max_c = rotated.bounding_box()
+            min_c, max_c = rotated.bounding_addresses()
             width = max_c[0] - min_c[0] + 1
             height = max_c[1] - min_c[1] + 1
             max_width = max(max_width, width)
@@ -638,7 +648,9 @@ def test_plot_gizmos_rotations():
 
     # Calculate grid size
     grid_width = shapes_per_row * rots_per_row * (max_width + 1) + 2
-    grid_height = ((len(GIZMOS) + shapes_per_row - 1) // shapes_per_row) * 2 * (max_height + 1) + 2
+    grid_height = ((len(GIZMOS) + shapes_per_row - 1) // shapes_per_row) * 2 * (
+        max_height + 1
+    ) + 2
 
     fig = plot_hex_grid(grid_width, grid_height)
 
@@ -655,10 +667,13 @@ def test_plot_gizmos_rotations():
             rot_col = rot_idx % rots_per_row
 
             # Calculate global offset
-            base_offset = np.array([
-                shape_col * rots_per_row * (max_width + 1) + rot_col * (max_width + 1),
-                shape_row * 2 * (max_height + 1) + rot_row * (max_height + 1)
-            ])
+            base_offset = np.array(
+                [
+                    shape_col * rots_per_row * (max_width + 1)
+                    + rot_col * (max_width + 1),
+                    shape_row * 2 * (max_height + 1) + rot_row * (max_height + 1),
+                ]
+            )
 
             # Translate the shape to its position
             positioned = rotated.translate(base_offset)
@@ -666,8 +681,13 @@ def test_plot_gizmos_rotations():
             # Use jittered color for variety
             color = positioned.jittered_color(jitter_amount=15)
 
-            plot_shape(fig, positioned.nodes, positioned.edges,
-                      node_color=color, edge_color=color)
+            plot_shape(
+                fig,
+                positioned.nodes,
+                positioned.edges,
+                node_color=color,
+                edge_color=color,
+            )
 
     fig.show()
 
@@ -682,7 +702,7 @@ def test_plot_sprockets_rotations():
     max_height = 0
     for shape in SPROCKETS:
         for rotated in shape.unique_originated_rotations():
-            min_c, max_c = rotated.bounding_box()
+            min_c, max_c = rotated.bounding_addresses()
             width = max_c[0] - min_c[0] + 1
             height = max_c[1] - min_c[1] + 1
             max_width = max(max_width, width)
@@ -690,7 +710,9 @@ def test_plot_sprockets_rotations():
 
     # Calculate grid size
     grid_width = shapes_per_row * rots_per_row * (max_width + 1) + 2
-    grid_height = ((len(SPROCKETS) + shapes_per_row - 1) // shapes_per_row) * 2 * (max_height + 1) + 2
+    grid_height = ((len(SPROCKETS) + shapes_per_row - 1) // shapes_per_row) * 2 * (
+        max_height + 1
+    ) + 2
 
     fig = plot_hex_grid(grid_width, grid_height)
 
@@ -707,10 +729,13 @@ def test_plot_sprockets_rotations():
             rot_col = rot_idx % rots_per_row
 
             # Calculate global offset
-            base_offset = np.array([
-                shape_col * rots_per_row * (max_width + 1) + rot_col * (max_width + 1),
-                shape_row * 2 * (max_height + 1) + rot_row * (max_height + 1)
-            ])
+            base_offset = np.array(
+                [
+                    shape_col * rots_per_row * (max_width + 1)
+                    + rot_col * (max_width + 1),
+                    shape_row * 2 * (max_height + 1) + rot_row * (max_height + 1),
+                ]
+            )
 
             # Translate the shape to its position
             positioned = rotated.translate(base_offset)
@@ -718,8 +743,13 @@ def test_plot_sprockets_rotations():
             # Use jittered color for variety
             color = positioned.jittered_color(jitter_amount=15)
 
-            plot_shape(fig, positioned.nodes, positioned.edges,
-                      node_color=color, edge_color=color)
+            plot_shape(
+                fig,
+                positioned.nodes,
+                positioned.edges,
+                node_color=color,
+                edge_color=color,
+            )
 
     fig.show()
 
