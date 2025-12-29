@@ -98,8 +98,19 @@ class Shape:
         return tuple(sorted([tuple(edge[0]), tuple(edge[1])]))
 
     @classmethod
+    def as_node_set(cls, nodes: np.ndarray) -> set[Node]:
+        return set(map(tuple, nodes))
+
+    @classmethod
+    def as_edge_set(cls, edges: np.ndarray) -> set[Edge]:
+        return set(cls.normalize_edge(edge) for edge in edges)
+
+    @classmethod
     def from_sets(
-        cls, nodes: set[Node], edges: set[Edge], mean_color: str = None
+        cls,
+        nodes: set[Node] = frozenset(),
+        edges: set[Edge] = frozenset(),
+        mean_color: str = None,
     ) -> Self:
         """Construct a Shape from sets of nodes and edges."""
         # Convert nodes set to numpy array
@@ -151,14 +162,6 @@ class Shape:
         nodes = self.node_set() - other.node_set()
         edges = self.edge_set() - other.edge_set()
         return Shape.from_sets(nodes=nodes, edges=edges, mean_color=self.mean_color)
-
-    @classmethod
-    def as_node_set(cls, nodes: np.ndarray) -> set[Node]:
-        return set(map(tuple, nodes))
-
-    @classmethod
-    def as_edge_set(cls, edges: np.ndarray) -> set[Edge]:
-        return set(cls.normalize_edge(edge) for edge in edges)
 
     def node_set(self) -> set[Node]:
         """This Shape's nodes as a set"""
