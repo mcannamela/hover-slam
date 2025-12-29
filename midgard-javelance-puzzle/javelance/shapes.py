@@ -584,12 +584,15 @@ SPROCKETS = [
 
 JAVELANCE_COLOR = "Bisque"
 JAVELANCE_FORBIDDEN_COLOR = "LightPink"
-JAVELANCE_VBOX = Shape.vertical_box(width=20, height=11, mean_color=JAVELANCE_COLOR)
+JAVELANCE_VBOX = Shape.vertical_box(width=20, height=10, mean_color=JAVELANCE_COLOR)
+JAVELANCE_GRID_SHAPE = Shape.vertical_box(
+    width=22, height=12, mean_color=JAVELANCE_COLOR
+)
 JAVELANCE_FORBIDDEN_NODES = functools.reduce(
     operator.or_,
     [
         {(x, y) for x in xx}
-        for y, xx in [
+        for d in [
             {
                 0: [
                     0,
@@ -613,17 +616,17 @@ JAVELANCE_FORBIDDEN_NODES = functools.reduce(
                     12,
                 ]
             },
-            {4: []},
-            {5: []},
+            {4: [-2, -1, 5, 16, 18]},
+            {5: [-2, 5, 16, 18]},
             {6: []},
-            {7: []},
-            {8: []},
-            {9: []},
-            {10: []},
-            {11: []},
+            {7: [17]},
+            {8: [-1, 4, 5, 13]},
+            {9: [-4, -2, -1, 4, 13]},
+            {10: [-4, -3, -2, -1, 3, 4, 7]},
         ]
+        for y, xx in d.items()
     ],
-    set,
+    set(),
 )
 
 JAVELANCE = JAVELANCE_VBOX.difference(
