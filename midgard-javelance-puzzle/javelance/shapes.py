@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import Self
+from typing import Self, Any
 
 import matplotlib.colors as mcolors
 import numpy as np
-
+from numpy import dtype, ndarray
 
 # Rotation matrices for hex grid transformations
 # Applied as coords @ matrix.T for rotations at 0°, 60°, 120°, 180°, 240°, 300°
@@ -22,6 +22,64 @@ class Shape:
     nodes: np.ndarray
     edges: np.ndarray
     mean_color: str = "rgb(128, 128, 128)"  # Default gray color
+
+    Node = tuple[int, int]
+    Edge = tuple[Node, Node]
+
+    @classmethod
+    def vertical_box(cls, width: int, height: int, mean_color: str = None) -> Self:
+        row_shape = (width, 1)
+        row_nodes = np.concat(
+            [np.arange(width)[:, np.newaxis], np.zeros(row_shape)], axis=1
+        )
+        rows = []
+        for i in range(height):
+            offset = np.array([-i, i])
+            rows.append(row_nodes + offset)
+        nodes = np.concatenate(rows, axis=0)
+        return cls(nodes=nodes, edges=Shape.empty_edges(), mean_color=mean_color)
+
+    @classmethod
+    def box(cls, width: int, height: int, mean_color: str = None) -> Self:
+        row_shape = (width, 1)
+        row_nodes = np.concat(
+            [np.arange(width)[:, np.newaxis], np.zeros(row_shape)], axis=1
+        )
+        rows = []
+        for i in range(height):
+            offset = np.array([0, i])
+            rows.append(row_nodes + offset)
+        nodes = np.concatenate(rows, axis=0)
+        return cls(nodes=nodes, edges=Shape.empty_edges(), mean_color=mean_color)
+
+    @classmethod
+    def empty_edges(cls) -> ndarray[tuple[int, int, int], dtype[Any]]:
+        return np.empty((0, 2, 2), dtype=int)
+
+    @classmethod
+    def from_sets(
+        cls, nodes: set[Node], edges: set[Edge], mean_color: str = None
+    ) -> Self:
+        """Construct a Shape from sets of nodes and edges."""
+        pass
+
+    def negative_nodes(self) -> Self:
+        """Return a Shape with all the nodes in this Shape's bounding_box that are not in the Shape and no edges"""
+        return self.box(mean_color=self.mean_color).difference(self)
+
+    def difference(self, other: Self) -> Self:
+        """The shape whose node and edge sets are the set difference of this shape and the other shape's sets."""
+        nodes = self.node_set() - other.node_set()
+        edges = self.edge_set() - other.edge_set()
+        return Shape.from_sets(nodes=nodes, edges=edges, mean_color=self.mean_color)
+
+    def node_set(self) -> set[Node]:
+        """This Shape's nodes as a set"""
+        pass
+
+    def edge_set(self) -> set[Edge]:
+        """This Shape's edges as a set, normalized so that the nodes comprising the edge are ordered"""
+        pass
 
     def __post_init__(self):
         # Convert named colors to rgb format before validation
@@ -200,7 +258,7 @@ class Shape:
                 rotated_edges_reshaped = edges_reshaped @ matrix.T
                 rotated_edges = rotated_edges_reshaped.reshape(-1, 2, 2)
             else:
-                rotated_edges = np.empty((0, 2, 2), dtype=int)
+                rotated_edges = Shape.empty_edges()
 
             rotated_shapes.append(
                 Shape(
