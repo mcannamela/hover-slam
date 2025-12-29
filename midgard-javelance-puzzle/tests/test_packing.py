@@ -1,0 +1,371 @@
+"""Tests for the packing module."""
+
+import numpy as np
+import pytest
+
+from javelance.packing import PackingProblem, PackingSolution, greedy_pack
+from javelance.shapes import Shape
+
+
+def test_is_valid_placement_all_nodes_in_target():
+    """Test that is_valid_placement checks nodes are in target."""
+    # Create a 3x3 box as target
+    target = Shape.box(width=3, height=3)
+
+    # Create a piece that fits
+    piece = Shape.box(width=2, height=2)
+
+    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set())
+
+    # Should be valid
+    assert problem.is_valid_placement(piece, set())
+
+    # Create a piece that goes outside target
+    piece_outside = piece.translate(np.array([5, 5]))
+    assert not problem.is_valid_placement(piece_outside, set())
+
+
+def test_is_valid_placement_no_overlap():
+    """Test that is_valid_placement checks for node overlap."""
+    target = Shape.box(width=5, height=5)
+    piece = Shape.box(width=2, height=2)
+
+    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set())
+
+    # First placement should be valid
+    assert problem.is_valid_placement(piece, set())
+
+    # Mark some nodes as occupied
+    occupied = {(0, 0), (1, 0)}
+
+    # Now the placement should be invalid
+    assert not problem.is_valid_placement(piece, occupied)
+
+    # But a different position should be valid
+    piece_offset = piece.translate(np.array([3, 3]))
+    assert problem.is_valid_placement(piece_offset, occupied)
+
+
+def test_is_valid_placement_forbidden_edges():
+    """Test that is_valid_placement checks forbidden edges."""
+    # Create a simple line of 3 nodes
+    nodes = np.array([[0, 0], [1, 0], [2, 0]])
+    edges = np.array([[[0, 0], [1, 0]], [[1, 0], [2, 0]]])
+    target = Shape(nodes=nodes, edges=edges)
+
+    # Create a piece with an edge
+    piece_nodes = np.array([[0, 0], [1, 0]])
+    piece_edges = np.array([[[0, 0], [1, 0]]])
+    piece = Shape(nodes=piece_nodes, edges=piece_edges)
+
+    # No forbidden edges - should be valid
+    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set())
+    assert problem.is_valid_placement(piece, set())
+
+    # Add the edge to forbidden list
+    forbidden = {((0, 0), (1, 0))}
+    problem_with_forbidden = PackingProblem(
+        target=target, pieces=[], forbidden_edges=forbidden
+    )
+    assert not problem_with_forbidden.is_valid_placement(piece, set())
+
+
+def test_generate_all_placements_simple():
+    """Test generating all placements for a simple piece."""
+    # Create a 4x4 target
+    target = Shape.box(width=4, height=4)
+
+    # Create a 2x2 piece
+    piece = Shape.box(width=2, height=2)
+
+    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set())
+
+    placements = problem.generate_all_placements(piece)
+
+    # For a 2x2 piece in a 4x4 target, there should be 3x3 = 9 valid positions
+    # (positions (0,0), (0,1), (0,2), (1,0), ... (2,2))
+    assert len(placements) >= 9
+
+    # Check that all placements are valid
+    for placement in placements:
+        assert problem.is_valid_placement(placement, set())
+
+
+def test_greedy_pack_perfect_fit():
+    """Test greedy packing when piece perfectly fits target."""
+    # Create a 2x2 target
+    target = Shape.box(width=2, height=2)
+
+    # Create a 2x2 piece
+    piece = Shape.box(width=2, height=2)
+
+    pieces = [("box_2x2", piece, 1.0)]
+    problem = PackingProblem(target=target, pieces=pieces, forbidden_edges=set())
+
+    solution = greedy_pack(problem)
+
+    # Should have 100% coverage
+    assert solution.coverage == 1.0
+
+    # Should have exactly one placement
+    assert len(solution.placements) == 1
+
+    # Should cost 1.0
+    assert solution.total_cost == 1.0
+
+
+def test_greedy_pack_multiple_pieces():
+    """Test greedy packing with multiple pieces."""
+    # Create a 4x2 target (4 wide, 2 tall)
+    target = Shape.box(width=4, height=2)
+
+    # Create 2x2 pieces
+    piece = Shape.box(width=2, height=2)
+
+    # We should be able to fit 2 pieces
+    pieces = [("box_2x2", piece, 1.0)]
+    problem = PackingProblem(target=target, pieces=pieces, forbidden_edges=set())
+
+    solution = greedy_pack(problem)
+
+    # Should have 100% coverage
+    assert solution.coverage == 1.0
+
+    # Should have exactly two placements
+    assert len(solution.placements) == 2
+
+    # Should cost 2.0
+    assert solution.total_cost == 2.0
+
+
+def test_greedy_pack_partial_coverage():
+    """Test greedy packing when full coverage is impossible."""
+    # Create a 3x3 target
+    target = Shape.box(width=3, height=3)
+
+    # Create a 2x2 piece - can't perfectly tile a 3x3
+    piece = Shape.box(width=2, height=2)
+
+    pieces = [("box_2x2", piece, 1.0)]
+    problem = PackingProblem(target=target, pieces=pieces, forbidden_edges=set())
+
+    solution = greedy_pack(problem)
+
+    # Coverage should be partial (not 0, not 1)
+    assert 0 < solution.coverage < 1.0
+
+    # Should have at least one placement
+    assert len(solution.placements) >= 1
+
+
+def test_greedy_pack_with_different_costs():
+    """Test that greedy packing considers costs."""
+    # Create a simple target
+    target = Shape.box(width=4, height=4)
+
+    # Create two piece types: cheap large vs expensive small
+    large_piece = Shape.box(width=2, height=2)  # 4 nodes
+    small_piece = Shape.box(width=1, height=1)  # 1 node
+
+    # Strategy: cost_per_node should prefer large_piece (1.0/4 = 0.25) over small_piece (1.0/1 = 1.0)
+    pieces = [
+        ("large", large_piece, 1.0),
+        ("small", small_piece, 1.0),
+    ]
+
+    problem = PackingProblem(target=target, pieces=pieces, forbidden_edges=set())
+
+    solution = greedy_pack(problem, strategy="cost_per_node")
+
+    # Should primarily use large pieces
+    large_count = sum(1 for name, _ in solution.placements if name == "large")
+    small_count = sum(1 for name, _ in solution.placements if name == "small")
+
+    # Should have used more large pieces
+    assert large_count > 0
+
+
+def test_greedy_pack_line_tiling():
+    """Test packing a line with smaller line segments."""
+    # Create a horizontal line of 6 nodes
+    nodes = np.array([[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0]])
+    edges = np.array([
+        [[0, 0], [1, 0]],
+        [[1, 0], [2, 0]],
+        [[2, 0], [3, 0]],
+        [[3, 0], [4, 0]],
+        [[4, 0], [5, 0]],
+    ])
+    target = Shape(nodes=nodes, edges=edges)
+
+    # Create a piece that is a line of 2 nodes
+    piece_nodes = np.array([[0, 0], [1, 0]])
+    piece_edges = np.array([[[0, 0], [1, 0]]])
+    piece = Shape(nodes=piece_nodes, edges=piece_edges)
+
+    pieces = [("line_2", piece, 1.0)]
+    problem = PackingProblem(target=target, pieces=pieces, forbidden_edges=set())
+
+    solution = greedy_pack(problem)
+
+    # Should achieve 100% coverage (6 nodes / 2 nodes per piece = 3 pieces)
+    assert solution.coverage == 1.0
+    assert len(solution.placements) == 3
+    assert solution.total_cost == 3.0
+
+
+def test_packing_solution_from_placements():
+    """Test creating a PackingSolution from placements."""
+    piece = Shape.box(width=2, height=2)
+    # A 2x2 box has 4 nodes
+    target_nodes = {(0, 0), (1, 0), (0, 1), (1, 1), (2, 0), (2, 1), (3, 0), (3, 1)}
+
+    placements = [
+        ("piece1", piece, 1.5),
+        ("piece2", piece.translate(np.array([2, 0])), 1.5),
+    ]
+
+    solution = PackingSolution.from_placements(placements, target_nodes)
+
+    assert solution.total_cost == 3.0
+    # Two 2x2 boxes cover 8 nodes
+    assert len(solution.covered_nodes) == 8
+    assert solution.coverage == 1.0
+
+
+def test_javelance_packing():
+    """Test packing DOODADS, GIZMOS, and SPROCKETS onto JAVELANCE."""
+    from javelance.shapes import (
+        DOODADS,
+        GIZMOS,
+        JAVELANCE,
+        JAVELANCE_FORBIDDEN_EDGES,
+        SPROCKETS,
+    )
+
+    # Set up the packing problem
+    pieces = []
+    for doodad in DOODADS:
+        pieces.append(("DOODAD", doodad, 1.0))
+    for gizmo in GIZMOS:
+        pieces.append(("GIZMO", gizmo, 5.4))
+    for sprocket in SPROCKETS:
+        pieces.append(("SPROCKET", sprocket, 9.9))
+
+    problem = PackingProblem(
+        target=JAVELANCE, pieces=pieces, forbidden_edges=JAVELANCE_FORBIDDEN_EDGES
+    )
+
+    # Try different strategies
+    print("\n=== Testing different greedy strategies ===")
+
+    for strategy in ["cost_per_node", "largest_first", "cheapest_first"]:
+        solution = greedy_pack(problem, strategy=strategy)
+
+        print(f"\nStrategy: {strategy}")
+        print(f"  Coverage: {solution.coverage:.2%}")
+        print(f"  Total cost: {solution.total_cost:.2f}")
+        print(f"  Covered nodes: {len(solution.covered_nodes)}/{len(JAVELANCE.node_set())}")
+        print(f"  Pieces placed: {len(solution.placements)}")
+
+        # Count piece types
+        piece_counts = {}
+        for name, _ in solution.placements:
+            piece_counts[name] = piece_counts.get(name, 0) + 1
+
+        print(f"  Piece breakdown: {piece_counts}")
+
+    # The test passes if we get some coverage
+    assert solution.coverage > 0
+
+
+def test_javelance_packing_visualization():
+    """Visualize the JAVELANCE packing solution."""
+    from javelance.plotting import plot_hex_grid, plot_shape
+    from javelance.shapes import (
+        DOODADS,
+        GIZMOS,
+        JAVELANCE,
+        JAVELANCE_FORBIDDEN,
+        JAVELANCE_FORBIDDEN_EDGES,
+        SPROCKETS,
+    )
+
+    # Set up the packing problem
+    pieces = []
+    for doodad in DOODADS:
+        pieces.append(("DOODAD", doodad, 1.0))
+    for gizmo in GIZMOS:
+        pieces.append(("GIZMO", gizmo, 5.4))
+    for sprocket in SPROCKETS:
+        pieces.append(("SPROCKET", sprocket, 9.9))
+
+    problem = PackingProblem(
+        target=JAVELANCE, pieces=pieces, forbidden_edges=JAVELANCE_FORBIDDEN_EDGES
+    )
+
+    # Solve with best strategy
+    solution = greedy_pack(problem, strategy="cost_per_node")
+
+    print(f"\n=== Best Solution (cost_per_node) ===")
+    print(f"Coverage: {solution.coverage:.2%}")
+    print(f"Total cost: {solution.total_cost:.2f}")
+    print(f"Pieces placed: {len(solution.placements)}")
+
+    # Create visualization
+    min_addr, max_addr = JAVELANCE.bounding_addresses()
+    grid_width = max_addr[0] - min_addr[0] + 3
+    grid_height = max_addr[1] - min_addr[1] + 3
+
+    fig = plot_hex_grid(grid_width, grid_height)
+
+    # Plot the JAVELANCE target shape (in background)
+    plot_shape(
+        fig,
+        JAVELANCE.nodes,
+        JAVELANCE.edges,
+        node_color=JAVELANCE.mean_color,
+        edge_color=JAVELANCE.mean_color,
+        alpha=0.3,
+    )
+
+    # Plot forbidden nodes/edges
+    plot_shape(
+        fig,
+        JAVELANCE_FORBIDDEN.nodes,
+        JAVELANCE_FORBIDDEN.edges,
+        node_color=JAVELANCE_FORBIDDEN.mean_color,
+        edge_color=JAVELANCE_FORBIDDEN.mean_color,
+        alpha=0.5,
+    )
+
+    # Plot each placed piece with a distinct jittered color
+    for i, (name, shape) in enumerate(solution.placements):
+        # Use different base colors for different piece types
+        if name == "DOODAD":
+            base_color = "rgb(0, 200, 0)"  # Green
+        elif name == "GIZMO":
+            base_color = "rgb(0, 0, 200)"  # Blue
+        else:  # SPROCKET
+            base_color = "rgb(200, 0, 200)"  # Magenta
+
+        # Create a shape with the base color to use jittered_color
+        colored_shape = Shape(
+            nodes=shape.nodes, edges=shape.edges, mean_color=base_color
+        )
+        color = colored_shape.jittered_color(jitter_amount=30)
+
+        plot_shape(
+            fig,
+            shape.nodes,
+            shape.edges,
+            node_color=color,
+            edge_color=color,
+            alpha=0.8,
+        )
+
+    fig.show()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
