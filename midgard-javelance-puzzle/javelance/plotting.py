@@ -142,7 +142,7 @@ def _shared_edge_vertices(hex1, hex2, hex_size=1.0):
     return v1, v2
 
 
-def plot_shape(fig, nodes, edges, hex_size=1.0, node_color='red', edge_color='blue', jitter=0.1):
+def plot_shape(fig, nodes, edges, hex_size=1.0, node_color='red', edge_color='blue', jitter=0.1, alpha=0.4, inset_ratio=0.7):
     """
     Plot a shape on the hexagonal grid.
 
@@ -154,18 +154,46 @@ def plot_shape(fig, nodes, edges, hex_size=1.0, node_color='red', edge_color='bl
     - node_color: color for node markers
     - edge_color: color for edge lines
     - jitter: amount to offset edges inward (as fraction of hex_size)
+    - alpha: transparency for nodes and edges (0-1)
+    - inset_ratio: ratio of node hexagon size to grid hexagon size
     """
-    # Plot nodes
+    # Vertices of a pointy-top hexagon are at angles: 30°, 90°, 150°, 210°, 270°, 330°
+    angles = np.array([30, 90, 150, 210, 270, 330]) * np.pi / 180
+
+    # Plot nodes as filled hexagons
     if len(nodes) > 0:
-        node_positions = np.array([_hex_center(i, j, hex_size) for i, j in nodes])
-        fig.add_trace(go.Scatter(
-            x=node_positions[:, 0],
-            y=node_positions[:, 1],
-            mode='markers',
-            marker=dict(size=10, color=node_color, symbol='circle'),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
+        for node in nodes:
+            center = _hex_center(node[0], node[1], hex_size)
+            cx, cy = center
+
+            # Calculate inset hexagon vertices
+            R_inset = hex_size * inset_ratio
+            vertices_x = cx + R_inset * np.cos(angles)
+            vertices_y = cy + R_inset * np.sin(angles)
+
+            # Close the hexagon
+            vertices_x = np.append(vertices_x, vertices_x[0])
+            vertices_y = np.append(vertices_y, vertices_y[0])
+
+            # Convert color to rgba format with alpha
+            if node_color.startswith('rgb'):
+                # Already in rgb format, convert to rgba
+                rgba_color = node_color.replace('rgb', 'rgba').replace(')', f', {alpha})')
+            else:
+                # Named color, use directly with opacity parameter
+                rgba_color = node_color
+
+            fig.add_trace(go.Scatter(
+                x=vertices_x,
+                y=vertices_y,
+                mode='lines',
+                line=dict(color=rgba_color, width=1),
+                fill='toself',
+                fillcolor=rgba_color,
+                opacity=alpha,
+                showlegend=False,
+                hoverinfo='skip'
+            ))
 
     # Plot edges
     for edge in edges:
@@ -204,12 +232,21 @@ def plot_shape(fig, nodes, edges, hex_size=1.0, node_color='red', edge_color='bl
         v1_jittered = v1 + jitter_vec
         v2_jittered = v2 + jitter_vec
 
+        # Convert edge color to rgba format with alpha
+        if edge_color.startswith('rgb'):
+            # Already in rgb format, convert to rgba
+            edge_rgba_color = edge_color.replace('rgb', 'rgba').replace(')', f', {alpha})')
+        else:
+            # Named color, use directly with opacity parameter
+            edge_rgba_color = edge_color
+
         # Plot the edge
         fig.add_trace(go.Scatter(
             x=[v1_jittered[0], v2_jittered[0]],
             y=[v1_jittered[1], v2_jittered[1]],
             mode='lines',
-            line=dict(color=edge_color, width=3),
+            line=dict(color=edge_rgba_color, width=3),
+            opacity=alpha,
             showlegend=False,
             hoverinfo='skip'
         ))
@@ -217,7 +254,7 @@ def plot_shape(fig, nodes, edges, hex_size=1.0, node_color='red', edge_color='bl
     return fig
 
 
-def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1):
+def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1, alpha=0.4):
     """
     Plot a small shape (4 nodes or fewer) on the hexagonal grid.
     Color is determined by the number of nodes:
@@ -232,6 +269,7 @@ def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1):
     - edges: Mx2x2 array where each edge is [[i1, j1], [i2, j2]]
     - hex_size: circumradius of hexagons
     - jitter: amount to offset edges inward (as fraction of hex_size)
+    - alpha: transparency for nodes and edges (0-1)
     """
     num_nodes = len(nodes)
 
@@ -268,4 +306,4 @@ def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1):
         color = 'gray'
 
     return plot_shape(fig, nodes, edges, hex_size=hex_size,
-                     node_color=color, edge_color=color, jitter=jitter)
+                     node_color=color, edge_color=color, jitter=jitter, alpha=alpha)
