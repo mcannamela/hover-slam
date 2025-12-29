@@ -140,5 +140,39 @@ def test_plot_jittered_colors():
     fig.show()
 
 
+def test_plot_named_colors():
+    """Test plotting shapes with named colors."""
+    from javelance.shapes import Shape
+
+    # Create shapes with various named colors
+    nodes = np.array([[0, 0], [1, 0], [0, 1]])
+    edges = np.array([[[0, 0], [1, 0]], [[0, 0], [0, 1]]])
+
+    named_colors = ['red', 'blue', 'green', 'purple', 'orange', 'cyan', 'magenta', 'yellow']
+
+    # Create a grid
+    fig = plot_hex_grid(8, 5)
+
+    # Plot shapes with different named colors
+    for idx, color_name in enumerate(named_colors):
+        # Calculate offset position
+        row = idx // 4
+        col = idx % 4
+        offset = (col * 2, row * 2)
+
+        # Create shape with named color
+        shape = Shape(nodes=nodes, edges=edges, mean_color=color_name)
+
+        # Shift the nodes by the offset
+        shifted_nodes = shape.nodes + np.array(offset)
+        shifted_edges = shape.edges + np.array(offset)
+
+        # Plot with the shape's converted color
+        plot_shape(fig, shifted_nodes, shifted_edges,
+                  node_color=shape.mean_color, edge_color=shape.mean_color)
+
+    fig.show()
+
+
 if __name__ == "__main__":
-    test_plot_jittered_colors()
+    test_plot_named_colors()

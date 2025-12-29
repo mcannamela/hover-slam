@@ -269,14 +269,28 @@ def test_jittered_color_with_rgba():
     assert jittered.endswith(")")
 
 
-def test_jittered_color_invalid_format():
-    """Test that jittered_color raises error for invalid color formats."""
+def test_named_color_converted_to_rgb():
+    """Test that named colors are converted to rgb format."""
     nodes = np.array([[0, 0], [1, 0]])
     edges = np.array([[[0, 0], [1, 0]]])
     shape = Shape(nodes=nodes, edges=edges, mean_color="blue")
 
+    # After initialization, mean_color should be converted to rgb format
+    assert shape.mean_color.startswith("rgb(")
+    assert shape.mean_color.endswith(")")
+
+    # Should be able to jitter it now
+    jittered = shape.jittered_color()
+    assert jittered.startswith("rgb(")
+
+
+def test_invalid_color_name():
+    """Test that invalid color names raise an error."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+
     with pytest.raises(ValueError, match="mean_color must be in 'rgb"):
-        shape.jittered_color()
+        Shape(nodes=nodes, edges=edges, mean_color="not_a_real_color_name")
 
 
 def test_rotations_preserve_mean_color():

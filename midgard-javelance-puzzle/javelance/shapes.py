@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+import matplotlib.colors as mcolors
 import numpy as np
 
 
@@ -22,6 +23,23 @@ class Shape:
     mean_color: str = "rgb(128, 128, 128)"  # Default gray color
 
     def __post_init__(self):
+        # Convert named colors to rgb format before validation
+        color_str = self.mean_color.strip()
+        if not (self._is_rgb_str(color_str) or self._is_rgba_str(color_str)):
+            # Assume it's a named color and try to convert it
+            try:
+                # matplotlib's to_rgb returns tuple of floats in [0, 1] range
+                rgb_tuple = mcolors.to_rgb(color_str)
+                # Convert to 0-255 range
+                r = int(rgb_tuple[0] * 255)
+                g = int(rgb_tuple[1] * 255)
+                b = int(rgb_tuple[2] * 255)
+                # Set mean_color to rgb format
+                self.mean_color = f"rgb({r}, {g}, {b})"
+            except ValueError as e:
+                # If conversion fails, let the validation method handle it
+                pass
+
         self._raise_if_color_str_invalid()
 
         # ensure that nodes is a 2d array where dimension 1 has size 2
