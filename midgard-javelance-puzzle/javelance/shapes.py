@@ -60,6 +60,50 @@ class Shape:
                     f"Invalid edge: hexagons {hex1} and {hex2} are not adjacent (offset {offset})"
                 )
 
+    def rotations(self):
+        """
+        Generate all 6 rotations of this shape on the hex grid.
+
+        Returns a list of 6 Shape objects representing rotations by
+        0°, 60°, 120°, 180°, 240°, and 300° counterclockwise.
+
+        For axial coordinates (i, j), the rotation transformations are:
+        - 0°:   (i, j) -> (i, j)
+        - 60°:  (i, j) -> (-j, i+j)
+        - 120°: (i, j) -> (-i-j, i)
+        - 180°: (i, j) -> (-i, -j)
+        - 240°: (i, j) -> (j, -i-j)
+        - 300°: (i, j) -> (i+j, -i)
+        """
+        # Rotation matrices for hex grid (applied as coords @ matrix.T)
+        rotation_matrices = [
+            np.array([[1, 0], [0, 1]]),      # 0°
+            np.array([[0, -1], [1, 1]]),     # 60°
+            np.array([[-1, -1], [1, 0]]),    # 120°
+            np.array([[-1, 0], [0, -1]]),    # 180°
+            np.array([[0, 1], [-1, -1]]),    # 240°
+            np.array([[1, 1], [-1, 0]]),     # 300°
+        ]
+
+        rotated_shapes = []
+
+        for matrix in rotation_matrices:
+            # Rotate all nodes using matrix multiplication
+            rotated_nodes = self.nodes @ matrix.T
+
+            # Rotate all edges
+            if len(self.edges) > 0:
+                # Reshape edges from (M, 2, 2) to (M*2, 2), rotate, then reshape back
+                edges_reshaped = self.edges.reshape(-1, 2)
+                rotated_edges_reshaped = edges_reshaped @ matrix.T
+                rotated_edges = rotated_edges_reshaped.reshape(-1, 2, 2)
+            else:
+                rotated_edges = np.empty((0, 2, 2), dtype=int)
+
+            rotated_shapes.append(Shape(nodes=rotated_nodes, edges=rotated_edges))
+
+        return rotated_shapes
+
 
 DOODADS = [
     Shape(

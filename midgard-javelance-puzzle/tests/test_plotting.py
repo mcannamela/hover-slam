@@ -77,5 +77,36 @@ def test_plot_small_shapes():
     fig.show()
 
 
+def test_plot_rotations():
+    """Test plotting all rotations of a shape."""
+    from javelance.shapes import Shape
+
+    # Create a simple L-shaped pattern
+    nodes = np.array([[0, 0], [1, 0], [0, 1]])
+    edges = np.array([[[0, 0], [1, 0]], [[0, 0], [0, 1]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    # Get all rotations
+    rotations = shape.rotations()
+
+    # Create a grid and plot all rotations
+    fig = plot_hex_grid(8, 8)
+
+    # Plot each rotation at a different location
+    offsets = [
+        (0, 0), (3, 0), (6, 0),
+        (0, 3), (3, 3), (6, 3),
+    ]
+
+    for i, (rotated, offset) in enumerate(zip(rotations, offsets)):
+        # Shift the nodes by the offset
+        shifted_nodes = rotated.nodes + np.array(offset)
+        shifted_edges = rotated.edges + np.array(offset)
+
+        plot_small_shape(fig, shifted_nodes, shifted_edges)
+
+    fig.show()
+
+
 if __name__ == "__main__":
-    test_plot_small_shapes()
+    test_plot_rotations()

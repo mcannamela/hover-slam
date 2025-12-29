@@ -128,5 +128,72 @@ def test_invalid_diagonal_adjacency():
         Shape(nodes=nodes, edges=edges)
 
 
+def test_rotations_count():
+    """Test that rotations returns exactly 6 shapes."""
+    nodes = np.array([[0, 0], [1, 0]])
+    edges = np.array([[[0, 0], [1, 0]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    rotations = shape.rotations()
+    assert len(rotations) == 6
+
+
+def test_rotations_first_is_identity():
+    """Test that the first rotation is the original shape."""
+    nodes = np.array([[0, 0], [1, 0], [0, 1]])
+    edges = np.array([[[0, 0], [1, 0]], [[0, 0], [0, 1]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    rotations = shape.rotations()
+
+    # First rotation should be identical to original
+    assert np.array_equal(rotations[0].nodes, shape.nodes)
+    assert np.array_equal(rotations[0].edges, shape.edges)
+
+
+def test_rotations_180_degree():
+    """Test that 180° rotation inverts coordinates."""
+    nodes = np.array([[1, 2], [2, 2]])  # Adjacent hexagons
+    edges = np.array([[[1, 2], [2, 2]]])  # Valid edge (offset is (1, 0))
+    shape = Shape(nodes=nodes, edges=edges)
+
+    rotations = shape.rotations()
+
+    # 180° rotation is at index 3
+    rotated_180 = rotations[3]
+
+    # 180° rotation: (i, j) -> (-i, -j)
+    expected_nodes = np.array([[-1, -2], [-2, -2]])
+    assert np.array_equal(rotated_180.nodes, expected_nodes)
+
+
+def test_rotations_all_valid():
+    """Test that all rotations produce valid shapes."""
+    nodes = np.array([[0, 0], [1, 0], [0, 1]])
+    edges = np.array([[[0, 0], [1, 0]], [[0, 0], [0, 1]]])
+    shape = Shape(nodes=nodes, edges=edges)
+
+    rotations = shape.rotations()
+
+    # All rotations should be valid (no exceptions raised during creation)
+    for i, rotated in enumerate(rotations):
+        assert len(rotated.nodes) == len(nodes), f"Rotation {i} has wrong node count"
+        assert len(rotated.edges) == len(edges), f"Rotation {i} has wrong edge count"
+
+
+def test_rotations_60_degree():
+    """Test specific 60° rotation transformation."""
+    nodes = np.array([[1, 0]])
+    edges = np.empty((0, 2, 2), dtype=int)  # No edges for simplicity
+    shape = Shape(nodes=nodes, edges=edges)
+
+    rotations = shape.rotations()
+
+    # 60° rotation: (1, 0) -> (0, 1)
+    rotated_60 = rotations[1]
+    expected_nodes = np.array([[0, 1]])
+    assert np.array_equal(rotated_60.nodes, expected_nodes)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
