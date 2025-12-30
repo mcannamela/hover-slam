@@ -46,6 +46,7 @@ def main():
 
         title = f"Strategy: {strategy} (Coverage: {solution.coverage:.2%})"
         fig = plot_packing_solution(solution, title=title)
+        fig.show()
 
 
 if __name__ == "__main__":
