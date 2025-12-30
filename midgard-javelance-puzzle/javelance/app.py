@@ -3,7 +3,6 @@
 import numpy as np
 from dash import Dash, dcc, html, Input, Output, State, callback
 from loguru import logger
-from matplotlib import interactive
 
 from javelance.javelance import JAVELANCE, JAVELANCE_GRID_SHAPE
 from javelance.plotting import plot_shape_hexes, plot_shape
@@ -73,6 +72,7 @@ def create_figure(selected_nodes=None):
             edge_color="orange",
             alpha=0.8,
             inset_ratio=0.85,
+            interactive=True,  # Make selected hexagons clickable to allow deselection
         )
 
     # Update title

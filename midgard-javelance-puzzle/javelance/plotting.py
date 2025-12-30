@@ -229,6 +229,7 @@ def plot_shape(
     jitter=0.1,
     alpha=0.7,
     inset_ratio=0.7,
+    interactive=False,
 ):
     """
     Plot a shape on the hexagonal grid.
@@ -243,6 +244,7 @@ def plot_shape(
     - jitter: amount to offset edges inward (as fraction of hex_size)
     - alpha: transparency for nodes and edges (0-1)
     - inset_ratio: ratio of node hexagon size to grid hexagon size
+    - interactive: if True, make hexagons clickable with customdata
     """
     # Vertices of a pointy-top hexagon are at angles: 30°, 90°, 150°, 210°, 270°, 330°
     angles = np.array([30, 90, 150, 210, 270, 330]) * np.pi / 180
@@ -272,19 +274,25 @@ def plot_shape(
                 # Named color, use directly with opacity parameter
                 rgba_color = node_color
 
-            fig.add_trace(
-                go.Scatter(
-                    x=vertices_x,
-                    y=vertices_y,
-                    mode="lines",
-                    line=dict(color=rgba_color, width=1),
-                    fill="toself",
-                    fillcolor=rgba_color,
-                    opacity=alpha,
-                    showlegend=False,
-                    hoverinfo="skip",
-                )
-            )
+            trace_params = {
+                "x": vertices_x,
+                "y": vertices_y,
+                "mode": "lines",
+                "line": dict(color=rgba_color, width=1),
+                "fill": "toself",
+                "fillcolor": rgba_color,
+                "opacity": alpha,
+                "showlegend": False,
+            }
+
+            if interactive:
+                # Make clickable with customdata
+                trace_params["hoverinfo"] = "none"
+                trace_params["customdata"] = [[node[0], node[1]]] * len(vertices_x)
+            else:
+                trace_params["hoverinfo"] = "skip"
+
+            fig.add_trace(go.Scatter(**trace_params))
 
     # Plot edges
     for edge in edges:
