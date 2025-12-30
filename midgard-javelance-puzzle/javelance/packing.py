@@ -354,6 +354,7 @@ def greedy_pack(
         # Compute priorities once upfront for efficiency
         prioritized_all: list[PrioritizedCandidate] = []
         with log_elapsed("compute_priorities_once"):
+            logger.info(f"There are {len(all_candidates)} candidate placements.")
             for name, placement, cost, num_nodes in all_candidates:
                 priority = heuristic_fn(
                     problem,
@@ -378,6 +379,7 @@ def greedy_pack(
     else:
         # Recompute heuristic after each placement (adaptive but slower)
         max_iter = len(all_candidates)
+        logger.info(f"There are {max_iter} candidate placements.")
         for _ in tqdm(range(max_iter)):
             # Find all currently valid candidates
             valid_candidates: list[Candidate] = [

@@ -285,6 +285,127 @@ def test_javelance_packing():
     assert solution.coverage > 0
 
 
+def test_heuristic_expected_coverage_cost_performance():
+    """Test and benchmark the expected_coverage_cost heuristic."""
+    import time
+    from javelance.packing import heuristic_expected_coverage_cost
+
+    # Create a simple test problem
+    target = Shape.box(width=10, height=10)  # 100 nodes
+    piece = Shape.box(width=2, height=2)  # 4 nodes
+
+    pieces = [("test_piece", piece, 1.0)]
+    problem = PackingProblem(target=target, pieces=pieces, forbidden_edges=set())
+
+    # Generate all candidates
+    all_candidates = []
+    for name, shape, cost in problem.pieces:
+        piece_placements = problem.generate_all_placements(shape)
+        for placement in piece_placements:
+            num_nodes = len(placement.node_set())
+            all_candidates.append((name, placement, cost, num_nodes))
+
+    print(f"\n=== Heuristic Performance Test ===")
+    print(f"Target size: {len(target.node_set())} nodes")
+    print(f"Total candidates: {len(all_candidates)}")
+
+    # Time a single heuristic call
+    occupied_nodes = set()
+    test_name, test_placement, test_cost, test_num_nodes = all_candidates[0]
+
+    start = time.time()
+    priority = heuristic_expected_coverage_cost(
+        problem, test_name, test_placement, test_cost, test_num_nodes, occupied_nodes, all_candidates
+    )
+    elapsed = time.time() - start
+
+    print(f"Single heuristic call: {elapsed:.4f}s")
+    print(f"Priority value: {priority:.6f}")
+
+    # Estimate total time for all candidates
+    estimated_total = elapsed * len(all_candidates)
+    print(f"Estimated time for all candidates: {estimated_total:.2f}s")
+
+    # Count node set operations
+    node_set_calls = 0
+    for _ in all_candidates:
+        for node in target.node_set():
+            for cand_name, cand_placement, cand_cost, cand_num_nodes in all_candidates:
+                node_set_calls += 1  # Each check calls node_set()
+
+    print(f"Approximate node_set() calls per heuristic: {node_set_calls // len(all_candidates)}")
+
+    # The heuristic should complete in reasonable time
+    assert elapsed < 1.0, f"Heuristic too slow: {elapsed:.4f}s for single call"
+
+
+def test_heuristic_expected_coverage_cost_javelance_size():
+    """Test heuristic performance with JAVELANCE-sized problem."""
+    import time
+    from javelance.packing import heuristic_expected_coverage_cost
+    from javelance.shapes import DOODADS, GIZMOS, JAVELANCE, JAVELANCE_FORBIDDEN_EDGES, SPROCKETS
+
+    # Set up the actual JAVELANCE packing problem
+    pieces = []
+    for doodad in DOODADS:
+        pieces.append(("DOODAD", doodad, 1.0))
+    for gizmo in GIZMOS:
+        pieces.append(("GIZMO", gizmo, 5.4))
+    for sprocket in SPROCKETS:
+        pieces.append(("SPROCKET", sprocket, 9.9))
+
+    problem = PackingProblem(
+        target=JAVELANCE, pieces=pieces, forbidden_edges=JAVELANCE_FORBIDDEN_EDGES
+    )
+
+    # Generate all candidates (this is what greedy_pack does)
+    print(f"\n=== JAVELANCE Heuristic Performance ===")
+    print(f"Target size: {len(JAVELANCE.node_set())} nodes")
+
+    start_gen = time.time()
+    all_candidates = []
+    for name, shape, cost in problem.pieces:
+        piece_placements = problem.generate_all_placements(shape)
+        for placement in piece_placements:
+            num_nodes = len(placement.node_set())
+            all_candidates.append((name, placement, cost, num_nodes))
+    elapsed_gen = time.time() - start_gen
+
+    print(f"Candidate generation: {elapsed_gen:.2f}s")
+    print(f"Total candidates: {len(all_candidates)}")
+
+    # Test a single heuristic call
+    occupied_nodes = set()
+    test_name, test_placement, test_cost, test_num_nodes = all_candidates[0]
+
+    start = time.time()
+    priority = heuristic_expected_coverage_cost(
+        problem, test_name, test_placement, test_cost, test_num_nodes, occupied_nodes, all_candidates
+    )
+    elapsed = time.time() - start
+
+    print(f"Single heuristic call: {elapsed:.4f}s")
+    print(f"Priority value: {priority:.6f}")
+
+    # Calculate complexity
+    target_size = len(JAVELANCE.node_set())
+    num_candidates = len(all_candidates)
+
+    # The heuristic does: for each target node, check all candidates
+    # Each check calls node_set() on the candidate placement
+    node_set_calls = target_size * num_candidates
+
+    print(f"Node set calls per heuristic: {node_set_calls:,} ({target_size} * {num_candidates})")
+
+    # Estimate total time to compute all priorities
+    estimated_total = elapsed * num_candidates
+    print(f"Estimated time for all {num_candidates} candidates: {estimated_total:.2f}s ({estimated_total/60:.1f} min)")
+
+    # This is the complexity problem: O(target_nodes * candidates^2)
+    total_complexity = target_size * num_candidates * num_candidates
+    print(f"Total complexity: O({total_complexity:,}) = {target_size} * {num_candidates}^2")
+
+
 def test_javelance_packing_visualization():
     """Visualize the JAVELANCE packing solution."""
     from javelance.plotting import plot_shape
