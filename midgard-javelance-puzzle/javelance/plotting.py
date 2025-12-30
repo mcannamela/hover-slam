@@ -63,54 +63,22 @@ def plot_shape_hexes(shape, hex_size=1.0):
             )
         )
 
-    # Plot interior edges (thick blue lines)
-    for edge in interior_edges:
-        hex1 = tuple(edge[0])
-        hex2 = tuple(edge[1])
-        v1, v2 = _shared_edge_vertices(hex1, hex2, hex_size)
-
-        fig.add_trace(
-            go.Scatter(
-                x=[v1[0], v2[0]],
-                y=[v1[1], v2[1]],
-                mode="lines",
-                line=dict(color="blue", width=3),
-                showlegend=False,
-                hoverinfo="skip",
-            )
-        )
-
-    # Plot boundary edges (thick red lines)
-    for edge in boundary_edges:
-        hex1 = tuple(edge[0])
-        hex2 = tuple(edge[1])
-        # For boundary edges, one node might not be in the shape
-        # We can still calculate the shared edge position
-        v1, v2 = _shared_edge_vertices(hex1, hex2, hex_size)
-
-        fig.add_trace(
-            go.Scatter(
-                x=[v1[0], v2[0]],
-                y=[v1[1], v2[1]],
-                mode="lines",
-                line=dict(color="red", width=3),
-                showlegend=False,
-                hoverinfo="skip",
-            )
-        )
-
     # Calculate bounds for aspect ratio
     if len(nodes) > 0:
         min_addr, max_addr = shape.bounding_addresses()
         # Maximum extent in x and y
-        max_x = (max_addr[0] - min_addr[0]) * np.sqrt(3) * R + (max_addr[1] - min_addr[1]) * np.sqrt(3) / 2 * R + 4 * R
+        max_x = (
+            (max_addr[0] - min_addr[0]) * np.sqrt(3) * R
+            + (max_addr[1] - min_addr[1]) * np.sqrt(3) / 2 * R
+            + 4 * R
+        )
         max_y = (max_addr[1] - min_addr[1]) * 3 / 2 * R + 4 * R
     else:
         max_x = 4 * R
         max_y = 4 * R
 
     # Set a base height and calculate width to match the aspect ratio
-    base_height = 1200
+    base_height = 800
     aspect_ratio = max_x / max_y if max_y > 0 else 1.0
     plot_width = int(base_height * aspect_ratio)
     plot_height = base_height
@@ -128,7 +96,7 @@ def plot_shape_hexes(shape, hex_size=1.0):
     return fig
 
 
-def plot_hex_grid(I, J, hex_size=1.0, exclude=None):
+def plot_hex_grid(width: int, height: int, hex_size=1.0, exclude=None):
     """
     Plot a hexagonal grid with pointy-top orientation.
 
@@ -143,7 +111,7 @@ def plot_hex_grid(I, J, hex_size=1.0, exclude=None):
     - j direction is 60° counterclockwise from the x-axis
     """
     # Create a box shape for the grid
-    grid_shape = Shape.box(width=I, height=J)
+    grid_shape = Shape.box(width=width, height=height)
 
     # If there are nodes to exclude, remove them from the grid shape
     if exclude is not None:
