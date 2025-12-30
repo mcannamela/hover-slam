@@ -148,6 +148,21 @@ class Shape:
         """Return a Shape with all the nodes in this Shape's bounding_box that are not in the Shape and no edges"""
         return self.bounding_box().difference(self)
 
+    def width(self):
+        """Number of columns spanned by the shape"""
+        return self.size()[0]
+
+    def height(self):
+        """Number of rows spanned by the shape"""
+        return self.size()[1]
+
+    def size(self) -> np.ndarray:
+        """Difference between min and max coordinates of the shape"""
+        return (
+            self.bounding_box().bounding_addresses()[1]
+            - self.bounding_box().bounding_addresses()[0]
+        )
+
     def bounding_box(self) -> Self:
         """A Shape that contains all the nodes between the bounding addresses of this Shape"""
         min_address, max_address = self.bounding_addresses()
