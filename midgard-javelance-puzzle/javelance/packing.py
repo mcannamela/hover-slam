@@ -31,9 +31,7 @@ class PackingProblem:
     pieces: list[tuple[str, Shape, float]]  # (name, shape, cost) for each piece type
     forbidden_edges: set[Shape.Edge]  # Edges that cannot be used
 
-    def is_valid_placement(
-        self, shape: Shape, occupied_nodes: set[Shape.Node]
-    ) -> bool:
+    def is_valid_placement(self, shape: Shape, occupied_nodes: set[Shape.Node]) -> bool:
         """
         Check if a shape placement is valid.
 
@@ -117,13 +115,15 @@ class PackingSolution:
         cls,
         placements: list[tuple[str, Shape, float]],
         target_nodes: set[Shape.Node],
+        uncovered_node_cost: float = 14.3,
     ) -> Self:
         """Create a PackingSolution from a list of placements."""
-        total_cost = sum(cost for _, _, cost in placements)
+        placements_cost = sum(cost for _, _, cost in placements)
         covered = set()
         for _, shape, _ in placements:
             covered |= shape.node_set()
-
+        n_uncovered = len(target_nodes - covered)
+        total_cost = placements_cost + n_uncovered * uncovered_node_cost
         coverage = len(covered) / len(target_nodes) if target_nodes else 0
 
         placement_list = [(name, shape) for name, shape, _ in placements]
@@ -136,7 +136,9 @@ class PackingSolution:
         )
 
 
-def greedy_pack(problem: PackingProblem, strategy: str = "cost_per_node") -> PackingSolution:
+def greedy_pack(
+    problem: PackingProblem, strategy: str = "cost_per_node"
+) -> PackingSolution:
     """
     Pack shapes using a greedy algorithm.
 
@@ -168,8 +170,8 @@ def greedy_pack(problem: PackingProblem, strategy: str = "cost_per_node") -> Pac
     if strategy == "expected_coverage_cost":
         node_coverage_cost = {}
         for node in target_nodes:
-            total_cost = 0
-            total_coverage = 0
+            total_cost = 14.3
+            total_coverage = 1
             # Find all placements that cover this node
             for name, placement, cost, num_nodes in all_candidates:
                 if node in placement.node_set():
@@ -201,7 +203,7 @@ def greedy_pack(problem: PackingProblem, strategy: str = "cost_per_node") -> Pac
             if total_node_value > 0:
                 priority = cost / total_node_value
             else:
-                priority = float('inf')  # No valuable nodes covered
+                priority = float("inf")  # No valuable nodes covered
         else:
             raise ValueError(f"Unknown strategy: {strategy}")
 
