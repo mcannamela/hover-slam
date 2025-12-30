@@ -242,8 +242,8 @@ def heuristic_expected_coverage_cost(
     priorities = np.zeros(len(all_candidates))
     for idx, (name, placement, cost, num_nodes) in enumerate(all_candidates):
         # Sum of node expected coverage costs for all nodes in this placement
-        expected_placement_coverage_costs = sum(
-            node_coverage_cost.get(node, 0) for node in placement.node_set()
+        expected_placement_coverage_costs = np.mean(
+            [node_coverage_cost.get(node, 0) for node in placement.node_set()]
         )
 
         # Prioritize low-cost placements covering high-value nodes
@@ -402,5 +402,12 @@ def greedy_pack(
             # Place the selected piece
             placements.append((name, placement, cost))
             occupied_nodes |= placement.node_set()
+
+            # filter newly invalid placements
+            all_candidates = [
+                c
+                for c in all_candidates
+                if problem.is_valid_placement(c[1], occupied_nodes)
+            ]
 
     return PackingSolution.from_placements(placements, target_nodes)
