@@ -4,9 +4,35 @@ import numpy as np
 import pytest
 from plotly.graph_objs import Figure
 
-from javelance.packing import PackingProblem, PackingSolution, greedy_pack
+from javelance.packing import (
+    PackingProblem,
+    PackingSolution,
+    greedy_pack,
+    get_array_combinations,
+)
 from javelance.plotting import plot_javelance, plot_packing_solution
 from javelance.shapes import Shape
+
+
+def test_get_array_combinations():
+    """Test get_array_combinations function."""
+    arr = np.array([1, 2, 3])
+    m = 2
+    expected = np.array([[1, 2], [1, 3], [2, 3]])
+    result = get_array_combinations(arr, m)
+    np.testing.assert_array_equal(result, expected)
+
+    # Test with different m
+    m = 3
+    expected = np.array([[1, 2, 3]])
+    result = get_array_combinations(arr, m)
+    np.testing.assert_array_equal(result, expected)
+
+    # Test with larger array
+    arr = np.array([10, 20, 30, 40])
+    m = 2
+    result = get_array_combinations(arr, m)
+    assert result.shape == (6, 2)
 
 
 def test_is_valid_placement_all_nodes_in_target():
@@ -83,7 +109,9 @@ def test_is_valid_placement_with_allowed_region():
     # Create a piece that spans both target and allowed
     piece = Shape.box(width=2, height=2).translate(np.array([2, 0]))
 
-    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set(), allowed=allowed)
+    problem = PackingProblem(
+        target=target, pieces=[], forbidden_edges=set(), allowed=allowed
+    )
 
     # Should be valid - has nodes in target and all nodes in target ∪ allowed
     assert problem.is_valid_placement(piece, set())
@@ -100,7 +128,9 @@ def test_is_valid_placement_all_nodes_in_allowed_only():
     # Create a piece entirely in allowed region (not touching target)
     piece = Shape.box(width=2, height=2).translate(np.array([3, 0]))
 
-    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set(), allowed=allowed)
+    problem = PackingProblem(
+        target=target, pieces=[], forbidden_edges=set(), allowed=allowed
+    )
 
     # Should be invalid - no nodes in target
     assert not problem.is_valid_placement(piece, set())
@@ -117,7 +147,9 @@ def test_is_valid_placement_nodes_outside_target_and_allowed():
     # Create a piece that goes outside both target and allowed
     piece = Shape.box(width=2, height=2).translate(np.array([10, 10]))
 
-    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set(), allowed=allowed)
+    problem = PackingProblem(
+        target=target, pieces=[], forbidden_edges=set(), allowed=allowed
+    )
 
     # Should be invalid - nodes outside target ∪ allowed
     assert not problem.is_valid_placement(piece, set())
@@ -132,7 +164,9 @@ def test_is_valid_placement_backward_compatibility():
     piece = Shape.box(width=2, height=2)
 
     # Problem with allowed=None (backward compatible)
-    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set(), allowed=None)
+    problem = PackingProblem(
+        target=target, pieces=[], forbidden_edges=set(), allowed=None
+    )
 
     # Should be valid
     assert problem.is_valid_placement(piece, set())
@@ -153,7 +187,9 @@ def test_generate_all_placements_with_allowed_region():
     # Create a 2x2 piece
     piece = Shape.box(width=2, height=2)
 
-    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set(), allowed=allowed)
+    problem = PackingProblem(
+        target=target, pieces=[], forbidden_edges=set(), allowed=allowed
+    )
 
     placements = problem.generate_all_placements(piece)
 
@@ -166,7 +202,9 @@ def test_generate_all_placements_with_allowed_region():
     target_nodes = target.node_set()
     for placement in placements:
         placement_nodes = placement.node_set()
-        assert placement_nodes & target_nodes, f"Placement {placement_nodes} has no target nodes"
+        assert placement_nodes & target_nodes, (
+            f"Placement {placement_nodes} has no target nodes"
+        )
 
     # Should have at least 2 placements (one at origin, one spanning)
     assert len(placements) >= 2

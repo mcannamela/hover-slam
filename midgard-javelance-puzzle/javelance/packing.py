@@ -1,5 +1,6 @@
 """Module for solving shape packing problems on hexagonal grids."""
 
+import itertools
 import math
 import time
 from contextlib import contextmanager
@@ -32,6 +33,20 @@ SelectorFn = Callable[
     [list[PrioritizedCandidate]],  # valid_prioritized_candidates
     PrioritizedCandidate | None,  # chosen candidate or None to stop
 ]
+
+
+def get_array_combinations(arr: np.ndarray, m: int) -> np.ndarray:
+    """
+    Enumerate all combinations of m elements from a 1D numpy array.
+
+    Args:
+        arr: 1D numpy array.
+        m: Number of elements in each combination.
+
+    Returns:
+        2D numpy array where each row is a combination.
+    """
+    return np.array(list(itertools.combinations(arr, m)))
 
 
 @dataclass
