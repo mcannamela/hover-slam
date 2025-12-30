@@ -11,6 +11,8 @@ def test_packing_results_schema_valid():
     # Create a valid dataframe
     df = pl.DataFrame({
         "targeted_regions": ["0,1,2"],
+        "packing_strategy": ["greedy"],
+        "packing_strategy_params": ["{}"],
         "num_doodads": [5],
         "num_gizmos": [3],
         "num_sprockets": [2],
@@ -32,6 +34,8 @@ def test_packing_results_schema_multiple_rows():
     # Create a dataframe with multiple solutions
     df = pl.DataFrame({
         "targeted_regions": ["0,1", "2,3,4", "5,6,7"],
+        "packing_strategy": ["greedy", "random", "optimal"],
+        "packing_strategy_params": ["{}", '{"seed": 42}', '{"max_time": 60}'],
         "num_doodads": [5, 3, 7],
         "num_gizmos": [3, 2, 4],
         "num_sprockets": [2, 1, 3],
@@ -53,6 +57,8 @@ def test_packing_results_schema_coercion():
     # Create a dataframe with coercible types
     df = pl.DataFrame({
         "targeted_regions": ["0"],
+        "packing_strategy": ["greedy"],
+        "packing_strategy_params": ["{}"],
         "num_doodads": [5.0],  # Float that should be coerced to int
         "num_gizmos": [3.0],
         "num_sprockets": [2.0],
@@ -74,6 +80,8 @@ def test_packing_results_schema_negative_values():
     # Create a dataframe with negative values (should fail validation)
     df = pl.DataFrame({
         "targeted_regions": ["0"],
+        "packing_strategy": ["greedy"],
+        "packing_strategy_params": ["{}"],
         "num_doodads": [-1],  # Invalid: negative
         "num_gizmos": [3],
         "num_sprockets": [2],
@@ -92,6 +100,8 @@ def test_packing_results_schema_missing_column():
     # Create a dataframe missing a required column
     df = pl.DataFrame({
         "targeted_regions": ["0"],
+        "packing_strategy": ["greedy"],
+        "packing_strategy_params": ["{}"],
         "num_doodads": [5],
         "num_gizmos": [3],
         # Missing num_sprockets
@@ -110,6 +120,8 @@ def test_packing_results_schema_extra_column():
     # Create a dataframe with an extra column
     df = pl.DataFrame({
         "targeted_regions": ["0"],
+        "packing_strategy": ["greedy"],
+        "packing_strategy_params": ["{}"],
         "num_doodads": [5],
         "num_gizmos": [3],
         "num_sprockets": [2],
@@ -129,6 +141,8 @@ def test_packing_results_schema_zero_values():
     # Create a dataframe with zero values (should be valid)
     df = pl.DataFrame({
         "targeted_regions": [""],
+        "packing_strategy": ["none"],
+        "packing_strategy_params": [""],
         "num_doodads": [0],
         "num_gizmos": [0],
         "num_sprockets": [0],

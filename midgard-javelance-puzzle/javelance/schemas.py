@@ -16,6 +16,15 @@ class PackingResultsSchema(pa.DataFrameModel):
         description="Comma-separated list of targeted JAVELANCE region IDs (e.g., '0,1,2')"
     )
 
+    # Packing strategy information
+    packing_strategy: str = pa.Field(
+        description="Name of the packing strategy used to generate this solution"
+    )
+
+    packing_strategy_params: str = pa.Field(
+        description="Parameters used for the packing strategy (e.g., JSON string)"
+    )
+
     # Piece counts
     num_doodads: int = pa.Field(
         ge=0,
