@@ -1,6 +1,7 @@
 import functools
 import operator
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Self, Any
 from plotly.graph_objs import Figure
 import matplotlib.colors as mcolors
@@ -132,6 +133,7 @@ class Shape:
 
         return cls(nodes=nodes_array, edges=edges_array, mean_color=mean_color)
 
+    @lru_cache()
     def adjacent(self) -> Self:
         """Return a Shape with all the adjacent nodes of this Shape's nodes but no edges"""
         # Get all adjacent nodes (may have duplicates)
@@ -148,14 +150,17 @@ class Shape:
         """Return a Shape with all the nodes in this Shape's bounding_box that are not in the Shape and no edges"""
         return self.bounding_box().difference(self)
 
+    @lru_cache()
     def width(self):
         """Number of columns spanned by the shape"""
         return self.size()[0]
 
+    @lru_cache()
     def height(self):
         """Number of rows spanned by the shape"""
         return self.size()[1]
 
+    @lru_cache()
     def size(self) -> np.ndarray:
         """Difference between min and max coordinates of the shape"""
         return (
@@ -163,6 +168,7 @@ class Shape:
             - self.bounding_box().bounding_addresses()[0]
         )
 
+    @lru_cache()
     def bounding_box(self) -> Self:
         """A Shape that contains all the nodes between the bounding addresses of this Shape"""
         min_address, max_address = self.bounding_addresses()
@@ -172,6 +178,7 @@ class Shape:
             width=width, height=height, mean_color=self.mean_color
         ).translate(min_address)
 
+    @lru_cache()
     def difference(self, other: Self) -> Self:
         """The shape whose node and edge sets are the set difference of this shape and the other shape's sets."""
         nodes = self.node_set() - other.node_set()
@@ -180,12 +187,13 @@ class Shape:
 
     def node_set(self) -> set[Node]:
         """This Shape's nodes as a set"""
-        return self.as_node_set(self.nodes)
+        return self._node_set
 
     def edge_set(self) -> set[Edge]:
         """This Shape's edges as a set, normalized so that the nodes comprising the edge are ordered"""
-        return self.as_edge_set(self.edges)
+        return self._edge_set
 
+    @lru_cache()
     def interior_edges(self) -> set[Edge]:
         """Set of all valid edges that can be made from this shape's nodes"""
         nodes = self.node_set()
@@ -200,6 +208,7 @@ class Shape:
 
         return edges
 
+    @lru_cache()
     def boundary_edges(self) -> set[Edge]:
         """Set of all edges that are not interior edges but have one node in the shape"""
         nodes = self.node_set()
@@ -214,14 +223,17 @@ class Shape:
 
         return edges
 
+    @lru_cache()
     def bounding_addresses(self) -> tuple[np.ndarray, np.ndarray]:
         """Return the hexes whose coordinates are the lower and upper bounds of all nodes in the shape"""
         return self.nodes.min(axis=0), self.nodes.max(axis=0)
 
+    @lru_cache()
     def originated_rotations(self) -> list[Self]:
         """Return all rotations of the shape, but shifted such that all node coordinates are positive"""
         return [x.originated() for x in self.rotations()]
 
+    @lru_cache()
     def equivalent(self, other: Self) -> bool:
         """
         Check if two shapes are equivalent (same nodes and edges after origination).
@@ -251,6 +263,7 @@ class Shape:
 
         return self_edges_set == other_edges_set
 
+    @lru_cache()
     def unique_originated_rotations(self) -> list[Self]:
         """
         Return only unique rotations of the shape (after origination).
@@ -274,6 +287,7 @@ class Shape:
 
         return unique_rots
 
+    @lru_cache()
     def originated(self):
         """Shift the shape such that the minimum address for both coordinates is 0"""
         displacement = -np.min(self.nodes, axis=0, keepdims=True)
@@ -287,6 +301,7 @@ class Shape:
             nodes=nodes_translated, edges=edges_translated, mean_color=self.mean_color
         )
 
+    @lru_cache()
     def rotations(self) -> list[Self]:
         """
         Generate all 6 rotations of this shape on the hex grid.
@@ -350,25 +365,24 @@ class Shape:
         return f"rgb({r_jittered}, {g_jittered}, {b_jittered})"
 
     def __post_init__(self):
-        # Convert named colors to rgb format before validation
-        color_str = self.mean_color.strip()
-        if not (self._is_rgb_str(color_str) or self._is_rgba_str(color_str)):
-            # Assume it's a named color and try to convert it
-            try:
-                # matplotlib's to_rgb returns tuple of floats in [0, 1] range
-                rgb_tuple = mcolors.to_rgb(color_str)
-                # Convert to 0-255 range
-                r = int(rgb_tuple[0] * 255)
-                g = int(rgb_tuple[1] * 255)
-                b = int(rgb_tuple[2] * 255)
-                # Set mean_color to rgb format
-                self.mean_color = f"rgb({r}, {g}, {b})"
-            except ValueError as e:
-                # If conversion fails, let the validation method handle it
-                pass
+        self._ensure_color_valid_or_raise()
 
-        self._raise_if_color_str_invalid()
+        self._ensure_nodes_and_edges_valid_or_raise()
+        self._node_set = self.as_node_set(self.nodes)
+        self._edge_set = self.as_edge_set(self.edges)
+        self._hash_key = (
+            tuple(sorted(self._node_set)),
+            tuple(sorted(self._edge_set)),
+            self.mean_color,
+        )
 
+    def __hash__(self):
+        return hash(self._hash_key)
+
+    def __eq__(self, other):
+        return self._hash_key == other._hash_key
+
+    def _ensure_nodes_and_edges_valid_or_raise(self):
         # ensure that nodes is a 2d array where dimension 1 has size 2
         if self.nodes.ndim != 2:
             raise ValueError(f"nodes must be a 2D array, got {self.nodes.ndim}D")
@@ -425,6 +439,26 @@ class Shape:
                 raise ValueError(
                     f"Invalid edge: hexagons {hex1} and {hex2} are not adjacent (offset {offset})"
                 )
+
+    def _ensure_color_valid_or_raise(self):
+        # Convert named colors to rgb format before validation
+        color_str = self.mean_color.strip()
+        if not (self._is_rgb_str(color_str) or self._is_rgba_str(color_str)):
+            # Assume it's a named color and try to convert it
+            try:
+                # matplotlib's to_rgb returns tuple of floats in [0, 1] range
+                rgb_tuple = mcolors.to_rgb(color_str)
+                # Convert to 0-255 range
+                r = int(rgb_tuple[0] * 255)
+                g = int(rgb_tuple[1] * 255)
+                b = int(rgb_tuple[2] * 255)
+                # Set mean_color to rgb format
+                self.mean_color = f"rgb({r}, {g}, {b})"
+            except ValueError as e:
+                # If conversion fails, let the validation method handle it
+                pass
+
+        self._raise_if_color_str_invalid()
 
     def _parse_color(self) -> tuple[int, int, int]:
         # Parse the mean color to extract RGB values
