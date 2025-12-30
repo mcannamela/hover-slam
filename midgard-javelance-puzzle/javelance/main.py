@@ -26,7 +26,7 @@ def main():
     # Try different strategies
     print("\n=== Testing different greedy strategies ===")
 
-    for strategy in ["cost_per_node", "largest_first", "cheapest_first"]:
+    for strategy in ["largest_first", "expected_coverage_cost"]:
         solution = greedy_pack(problem, strategy=strategy)
 
         print(f"\nStrategy: {strategy}")
