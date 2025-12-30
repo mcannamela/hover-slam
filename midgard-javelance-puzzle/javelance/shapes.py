@@ -599,9 +599,9 @@ SPROCKETS = [
 
 JAVELANCE_COLOR = "Bisque"
 JAVELANCE_FORBIDDEN_COLOR = "LightPink"
-JAVELANCE_VBOX = Shape.vertical_box(width=20, height=10, mean_color=JAVELANCE_COLOR)
+JAVELANCE_VBOX = Shape.vertical_box(width=21, height=11, mean_color=JAVELANCE_COLOR)
 JAVELANCE_GRID_SHAPE = Shape.vertical_box(
-    width=22, height=12, mean_color=JAVELANCE_COLOR
+    width=23, height=13, mean_color=JAVELANCE_COLOR
 )
 JAVELANCE_FORBIDDEN_NODES = functools.reduce(
     operator.or_,

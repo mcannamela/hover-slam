@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from javelance.shapes import Shape, DOODADS, GIZMOS, SPROCKETS
+from javelance.shapes import Shape, DOODADS, GIZMOS, SPROCKETS, JAVELANCE_GRID_SHAPE
 from javelance.plotting import plot_hex_grid, plot_shape, plot_shape_hexes
 
 
@@ -1341,19 +1341,20 @@ def test_plot_javelance():
     from javelance.shapes import JAVELANCE_FORBIDDEN, JAVELANCE
 
     # Create a grid large enough for both shapes
-    fig = plot_hex_grid(50, 25)
+    fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE.translate(np.array([-1, -1])))
+    offset = np.array([0, 0])
 
-    # Plot JAVELANCE_PROTO on the left
+    # Plot JAVELANCE_FORBIDDEN
     plot_shape(
         fig,
-        JAVELANCE_FORBIDDEN.nodes,
-        JAVELANCE_FORBIDDEN.edges,
+        JAVELANCE_FORBIDDEN.translate(offset).nodes,
+        JAVELANCE_FORBIDDEN.translate(offset).edges,
         node_color=JAVELANCE_FORBIDDEN.mean_color,
         edge_color=JAVELANCE_FORBIDDEN.mean_color,
     )
 
-    # Plot JAVELANCE on the right (offset by 25 in x direction)
-    javelance_offset = JAVELANCE.translate(np.array([0, 0]))
+    # Plot JAVELANCE
+    javelance_offset = JAVELANCE.translate(offset)
     plot_shape(
         fig,
         javelance_offset.nodes,
