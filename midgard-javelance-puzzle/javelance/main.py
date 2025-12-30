@@ -2,12 +2,12 @@ from loguru import logger
 
 from javelance.packing import PackingProblem, greedy_pack
 from javelance.plotting import plot_packing_solution
-from javelance.shapes import (
+from javelance.javelance import (
     DOODADS,
     GIZMOS,
+    SPROCKETS,
     JAVELANCE,
     JAVELANCE_FORBIDDEN_EDGES,
-    SPROCKETS,
 )
 
 

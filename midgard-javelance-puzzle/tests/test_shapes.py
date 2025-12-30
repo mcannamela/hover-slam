@@ -8,12 +8,9 @@ from javelance.plotting import (
     plot_javelance,
 )
 from javelance.shapes import (
-    DOODADS,
-    GIZMOS,
-    JAVELANCE_GRID_SHAPE,
-    SPROCKETS,
     Shape,
 )
+from javelance.javelance import DOODADS, GIZMOS, SPROCKETS, JAVELANCE_GRID_SHAPE
 
 
 def test_valid_shape():

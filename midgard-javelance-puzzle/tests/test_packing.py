@@ -239,13 +239,11 @@ def test_packing_solution_from_placements():
 
 def test_javelance_packing():
     """Test packing DOODADS, GIZMOS, and SPROCKETS onto JAVELANCE."""
-    from javelance.shapes import (
-        DOODADS,
-        GIZMOS,
-        JAVELANCE,
-        JAVELANCE_FORBIDDEN_EDGES,
-        SPROCKETS,
-    )
+    from javelance.javelance import JAVELANCE_FORBIDDEN_EDGES
+    from javelance.javelance import JAVELANCE
+    from javelance.javelance import SPROCKETS
+    from javelance.javelance import GIZMOS
+    from javelance.javelance import DOODADS
 
     # Set up the packing problem
     pieces = []
@@ -263,7 +261,12 @@ def test_javelance_packing():
     # Try different strategies
     print("\n=== Testing different greedy strategies ===")
 
-    for strategy in ["cost_per_node", "largest_first", "cheapest_first", "expected_coverage_cost"]:
+    for strategy in [
+        "cost_per_node",
+        "largest_first",
+        "cheapest_first",
+        "expected_coverage_cost",
+    ]:
         solution = greedy_pack(problem, strategy=strategy)
 
         print(f"\nStrategy: {strategy}")
@@ -313,22 +316,32 @@ def test_heuristic_expected_coverage_cost_performance():
     occupied_nodes = set()
 
     start = time.time()
-    priorities = heuristic_expected_coverage_cost(problem, occupied_nodes, all_candidates)
+    priorities = heuristic_expected_coverage_cost(
+        problem, occupied_nodes, all_candidates
+    )
     elapsed = time.time() - start
 
-    print(f"Single heuristic call (all {len(all_candidates)} candidates): {elapsed:.4f}s")
+    print(
+        f"Single heuristic call (all {len(all_candidates)} candidates): {elapsed:.4f}s"
+    )
     print(f"First priority value: {priorities[0]:.6f}")
     print(f"Time per candidate: {elapsed / len(all_candidates) * 1000:.2f}ms")
 
     # The heuristic should compute all priorities efficiently
-    assert elapsed < 1.0, f"Heuristic too slow: {elapsed:.4f}s for all {len(all_candidates)} candidates"
+    assert elapsed < 1.0, (
+        f"Heuristic too slow: {elapsed:.4f}s for all {len(all_candidates)} candidates"
+    )
 
 
 def test_heuristic_expected_coverage_cost_javelance_size():
     """Test heuristic performance with JAVELANCE-sized problem."""
     import time
     from javelance.packing import heuristic_expected_coverage_cost
-    from javelance.shapes import DOODADS, GIZMOS, JAVELANCE, JAVELANCE_FORBIDDEN_EDGES, SPROCKETS
+    from javelance.javelance import JAVELANCE_FORBIDDEN_EDGES
+    from javelance.javelance import JAVELANCE
+    from javelance.javelance import SPROCKETS
+    from javelance.javelance import GIZMOS
+    from javelance.javelance import DOODADS
 
     # Set up the actual JAVELANCE packing problem
     pieces = []
@@ -363,10 +376,14 @@ def test_heuristic_expected_coverage_cost_javelance_size():
     occupied_nodes = set()
 
     start = time.time()
-    priorities = heuristic_expected_coverage_cost(problem, occupied_nodes, all_candidates)
+    priorities = heuristic_expected_coverage_cost(
+        problem, occupied_nodes, all_candidates
+    )
     elapsed = time.time() - start
 
-    print(f"Single heuristic call (all {len(all_candidates)} candidates): {elapsed:.4f}s")
+    print(
+        f"Single heuristic call (all {len(all_candidates)} candidates): {elapsed:.4f}s"
+    )
     print(f"First priority value: {priorities[0]:.6f}")
     print(f"Time per candidate: {elapsed / len(all_candidates) * 1000:.2f}ms")
 
@@ -377,21 +394,23 @@ def test_heuristic_expected_coverage_cost_javelance_size():
     # The heuristic does: for each target node, check all candidates ONCE
     # New complexity: O(target_nodes * candidates) instead of O(target_nodes * candidates^2)
     node_set_calls = target_size * num_candidates
-    print(f"Node set calls total: {node_set_calls:,} ({target_size} * {num_candidates})")
+    print(
+        f"Node set calls total: {node_set_calls:,} ({target_size} * {num_candidates})"
+    )
     print(f"New complexity: O({node_set_calls:,}) = {target_size} * {num_candidates}")
-    print(f"Previous complexity would have been: O({target_size * num_candidates * num_candidates:,})")
+    print(
+        f"Previous complexity would have been: O({target_size * num_candidates * num_candidates:,})"
+    )
 
 
 def test_javelance_packing_visualization():
     """Visualize the JAVELANCE packing solution."""
     from javelance.plotting import plot_shape
-    from javelance.shapes import (
-        DOODADS,
-        GIZMOS,
-        JAVELANCE,
-        JAVELANCE_FORBIDDEN_EDGES,
-        SPROCKETS,
-    )
+    from javelance.javelance import JAVELANCE_FORBIDDEN_EDGES
+    from javelance.javelance import JAVELANCE
+    from javelance.javelance import SPROCKETS
+    from javelance.javelance import GIZMOS
+    from javelance.javelance import DOODADS
 
     # Set up the packing problem
     pieces = []

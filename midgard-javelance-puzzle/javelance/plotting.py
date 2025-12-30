@@ -4,7 +4,8 @@ import plotly.io as pio
 from plotly.graph_objs import Figure
 
 from javelance.packing import PackingSolution
-from javelance.shapes import JAVELANCE, JAVELANCE_FORBIDDEN, JAVELANCE_GRID_SHAPE, Shape
+from javelance.shapes import Shape
+from javelance.javelance import JAVELANCE_GRID_SHAPE, JAVELANCE, JAVELANCE_FORBIDDEN
 
 # Set default renderer to always open plots in browser
 pio.renderers.default = "browser"
