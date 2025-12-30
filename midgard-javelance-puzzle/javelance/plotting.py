@@ -11,7 +11,7 @@ from javelance.javelance import JAVELANCE_GRID_SHAPE, JAVELANCE, JAVELANCE_FORBI
 pio.renderers.default = "browser"
 
 
-def plot_shape_hexes(shape, hex_size=1.0, label_hexes=True):
+def plot_shape_hexes(shape, hex_size=1.0, label_hexes=True, interactive=False):
     """
     Plot hexagons for all nodes in a shape, with interior and boundary edges.
 
@@ -19,6 +19,7 @@ def plot_shape_hexes(shape, hex_size=1.0, label_hexes=True):
     - shape: Shape object containing nodes to plot
     - hex_size: circumradius of each hexagon (distance from center to vertex)
     - label_hexes: if True, label every 5th hex with its (i, j) coordinates
+    - interactive: if True, make hexagons clickable (don't skip hover info)
 
     Returns:
     - Plotly Figure object
@@ -55,17 +56,25 @@ def plot_shape_hexes(shape, hex_size=1.0, label_hexes=True):
         vertices_x = np.append(vertices_x, vertices_x[0])
         vertices_y = np.append(vertices_y, vertices_y[0])
 
-        # Add hexagon outline
-        fig.add_trace(
-            go.Scatter(
-                x=vertices_x,
-                y=vertices_y,
-                mode="lines",
-                line=dict(color="black", width=1),
-                showlegend=False,
-                hoverinfo="skip",
-            )
-        )
+        # Add hexagon outline (and fill if interactive)
+        trace_params = {
+            "x": vertices_x,
+            "y": vertices_y,
+            "mode": "lines",
+            "line": dict(color="black", width=1),
+            "showlegend": False,
+        }
+
+        if interactive:
+            # Make filled and clickable
+            trace_params["fill"] = "toself"
+            trace_params["fillcolor"] = "rgba(255, 255, 255, 0.01)"  # Nearly transparent
+            trace_params["hoverinfo"] = "none"  # Don't show hover text, but allow clicks
+        else:
+            # Non-interactive outline only
+            trace_params["hoverinfo"] = "skip"
+
+        fig.add_trace(go.Scatter(**trace_params))
 
     # Add labels to every 5th hex
     if label_hexes:

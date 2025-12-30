@@ -36,8 +36,8 @@ def create_figure(selected_nodes=None):
 
     logger.debug(f"Selected nodes:{selected_nodes}")
 
-    # Use plot_shape_hexes to plot the grid
-    fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE, hex_size=1.0, label_hexes=False)
+    # Use plot_shape_hexes to plot the grid with interactive hexagons
+    fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE, hex_size=1.0, label_hexes=False, interactive=True)
 
     # Overlay JAVELANCE using plot_shape
     javelance_nodes = np.array(sorted(JAVELANCE.node_set()))
