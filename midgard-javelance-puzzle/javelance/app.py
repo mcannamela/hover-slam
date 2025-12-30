@@ -3,6 +3,7 @@
 import numpy as np
 from dash import Dash, dcc, html, Input, Output, State, callback
 from loguru import logger
+from matplotlib import interactive
 
 from javelance.javelance import JAVELANCE, JAVELANCE_GRID_SHAPE
 from javelance.plotting import plot_shape_hexes, plot_shape
@@ -121,16 +122,12 @@ def handle_click(click_data, selected_nodes_data):
 
     if click_data is not None and "points" in click_data:
         logger.debug(f"click_data: {click_data}")
-        # Get the clicked point's coordinates
+        # Get the clicked point's custom data (hex address stored by plot_shape_hexes)
         point = click_data["points"][0]
-        if "bbox" in point:
-            x = (point["bbox"]["x0"] + point["bbox"]["x1"]) / 2
-            y = (point["bbox"]["y0"] + point["bbox"]["y1"]) / 2
+        if "customdata" in point and point["customdata"] is not None:
+            i, j = point["customdata"][0]
 
-            # Convert click coordinates to hex address
-            i, j = coords_to_hex(x, y, hex_size=HEX_SIZE)
-
-            logger.debug(f"Got avg point ({x},{y})-> address ({i},{j})")
+            logger.debug(f"Clicked hex address: ({i},{j})")
 
             # Validate that the clicked hex is in JAVELANCE_GRID_SHAPE
             if (i, j) in JAVELANCE_GRID_SHAPE.node_set():
@@ -144,8 +141,10 @@ def handle_click(click_data, selected_nodes_data):
                     selected_nodes.add(clicked_node)
             else:
                 logger.debug(f"Clicked hex ({i},{j}) is not in JAVELANCE_GRID_SHAPE")
+        else:
+            logger.debug(f"No customdata in point: {point.keys()}")
     else:
-        logger.debug("No click data or bbox not in click data")
+        logger.debug("No click data")
 
     # Create updated figure
     fig = create_figure(selected_nodes)

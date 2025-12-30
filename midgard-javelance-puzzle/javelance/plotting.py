@@ -70,6 +70,8 @@ def plot_shape_hexes(shape, hex_size=1.0, label_hexes=True, interactive=False):
             trace_params["fill"] = "toself"
             trace_params["fillcolor"] = "rgba(255, 255, 255, 0.01)"  # Nearly transparent
             trace_params["hoverinfo"] = "none"  # Don't show hover text, but allow clicks
+            # Store hex address in customdata so clicks can identify which hex was clicked
+            trace_params["customdata"] = [[i, j]] * len(vertices_x)
         else:
             # Non-interactive outline only
             trace_params["hoverinfo"] = "skip"
