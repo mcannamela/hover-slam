@@ -344,6 +344,32 @@ class Shape:
 
         return rotated_shapes
 
+    def plot(
+        self,
+        fig,
+        hex_size=1.0,
+        jitter=0.1,
+        alpha=0.7,
+        inset_ratio=0.7,
+        interactive=True,
+    ):
+        """Plot the shape on the given figure"""
+        from javelance.plotting import plot_shape
+
+        color = self.jittered_color()
+        return plot_shape(
+            fig,
+            self.nodes,
+            self.edges,
+            hex_size,
+            color,
+            color,
+            jitter,
+            alpha,
+            inset_ratio,
+            interactive,
+        )
+
     def jittered_color(self, jitter_amount=20):
         """
         Generate a color by adding random noise to the mean_color in RGB space.

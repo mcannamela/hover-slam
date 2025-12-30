@@ -4,7 +4,12 @@ import numpy as np
 from dash import Dash, dcc, html, Input, Output, State, callback, Patch
 from loguru import logger
 
-from javelance.javelance import JAVELANCE, JAVELANCE_GRID_SHAPE
+from javelance.javelance import (
+    JAVELANCE,
+    JAVELANCE_GRID_SHAPE,
+    JAVELANCE_REGIONS,
+    JAVELANCE_FORBIDDEN,
+)
 from javelance.plotting import plot_shape_hexes, plot_shape
 from javelance.shapes import Shape
 
@@ -38,20 +43,10 @@ def create_base_figure():
         JAVELANCE_GRID_SHAPE, hex_size=HEX_SIZE, label_hexes=False, interactive=True
     )
 
-    # Overlay JAVELANCE using plot_shape
-    javelance_nodes = np.array(sorted(JAVELANCE.node_set()))
-    javelance_edges = JAVELANCE.edges
+    for region_id, region in JAVELANCE_REGIONS.items():
+        region.plot(fig, hex_size=HEX_SIZE, interactive=True)
 
-    plot_shape(
-        fig,
-        javelance_nodes,
-        javelance_edges,
-        hex_size=HEX_SIZE,
-        node_color=JAVELANCE.mean_color,
-        edge_color=JAVELANCE.mean_color,
-        alpha=0.5,
-        inset_ratio=0.7,
-    )
+    JAVELANCE_FORBIDDEN.plot(fig, hex_size=HEX_SIZE, alpha=0.5)
 
     # Update title
     fig.update_layout(
@@ -81,6 +76,7 @@ def add_selected_nodes_to_patch(patch, selected_nodes, start_index):
 
     # Create a minimal temporary figure to get just the selected node traces
     import plotly.graph_objects as go
+
     temp_fig = go.Figure()
 
     plot_shape(
@@ -120,9 +116,7 @@ app.layout = html.Div(
                 html.P(id="selection-info", children="No hexagons selected"),
             ]
         ),
-        dcc.Graph(
-            id="hex-grid", figure=BASE_FIGURE, config={"displayModeBar": True}
-        ),
+        dcc.Graph(id="hex-grid", figure=BASE_FIGURE, config={"displayModeBar": True}),
         dcc.Store(
             id="selected-nodes", data=[]
         ),  # Store selected nodes as list of [i, j]
@@ -184,7 +178,9 @@ def handle_click(click_data, selected_nodes_data, selected_trace_indices):
     if selected_trace_indices is None:
         selected_trace_indices = []
 
-    logger.debug(f"Removing {len(selected_trace_indices)} previous selected node traces at indices: {selected_trace_indices}")
+    logger.debug(
+        f"Removing {len(selected_trace_indices)} previous selected node traces at indices: {selected_trace_indices}"
+    )
     for idx in sorted(selected_trace_indices, reverse=True):
         try:
             del patched_figure.data[idx]
@@ -193,8 +189,12 @@ def handle_click(click_data, selected_nodes_data, selected_trace_indices):
 
     # Add new selected node traces starting at NUM_BASE_TRACES
     # (since we've deleted all the old selected traces, new ones start right after base)
-    new_trace_indices = add_selected_nodes_to_patch(patched_figure, selected_nodes, NUM_BASE_TRACES)
-    logger.debug(f"Added {len(new_trace_indices)} new selected node traces at indices: {new_trace_indices}")
+    new_trace_indices = add_selected_nodes_to_patch(
+        patched_figure, selected_nodes, NUM_BASE_TRACES
+    )
+    logger.debug(
+        f"Added {len(new_trace_indices)} new selected node traces at indices: {new_trace_indices}"
+    )
 
     # Convert set back to list for storage
     selected_nodes_list = [list(node) for node in selected_nodes]
