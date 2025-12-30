@@ -1,8 +1,19 @@
 import numpy as np
 import pytest
 
-from javelance.shapes import Shape, DOODADS, GIZMOS, SPROCKETS, JAVELANCE_GRID_SHAPE
-from javelance.plotting import plot_hex_grid, plot_shape, plot_shape_hexes
+from javelance.plotting import (
+    plot_hex_grid,
+    plot_shape,
+    plot_shape_hexes,
+    plot_javelance,
+)
+from javelance.shapes import (
+    DOODADS,
+    GIZMOS,
+    JAVELANCE_GRID_SHAPE,
+    SPROCKETS,
+    Shape,
+)
 
 
 def test_valid_shape():
@@ -1338,30 +1349,8 @@ def test_boundary_edges_conservation():
 
 def test_plot_javelance():
     """Visual test: Plot JAVELANCE_PROTO and JAVELANCE shapes."""
-    from javelance.shapes import JAVELANCE_FORBIDDEN, JAVELANCE
 
-    # Create a grid large enough for both shapes
-    fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE.translate(np.array([-1, -1])))
-    offset = np.array([0, 0])
-
-    # Plot JAVELANCE_FORBIDDEN
-    plot_shape(
-        fig,
-        JAVELANCE_FORBIDDEN.translate(offset).nodes,
-        JAVELANCE_FORBIDDEN.translate(offset).edges,
-        node_color=JAVELANCE_FORBIDDEN.mean_color,
-        edge_color=JAVELANCE_FORBIDDEN.mean_color,
-    )
-
-    # Plot JAVELANCE
-    javelance_offset = JAVELANCE.translate(offset)
-    plot_shape(
-        fig,
-        javelance_offset.nodes,
-        javelance_offset.edges,
-        node_color=javelance_offset.mean_color,
-        edge_color=javelance_offset.mean_color,
-    )
+    fig = plot_javelance()
 
     fig.show()
 

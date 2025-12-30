@@ -1,8 +1,9 @@
 import numpy as np
 import plotly.graph_objects as go
 import plotly.io as pio
+from plotly.graph_objs import Figure
 
-from javelance.shapes import Shape
+from javelance.shapes import JAVELANCE, JAVELANCE_FORBIDDEN, JAVELANCE_GRID_SHAPE, Shape
 
 # Set default renderer to always open plots in browser
 pio.renderers.default = "browser"
@@ -116,7 +117,9 @@ def plot_shape_hexes(shape, hex_size=1.0, label_hexes=True):
     return fig
 
 
-def plot_hex_grid(width: int, height: int, hex_size=1.0, exclude=None, label_hexes=True):
+def plot_hex_grid(
+    width: int, height: int, hex_size=1.0, exclude=None, label_hexes=True
+):
     """
     Plot a hexagonal grid with pointy-top orientation.
 
@@ -396,3 +399,29 @@ def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1, alpha=0.4):
         jitter=jitter,
         alpha=alpha,
     )
+
+
+def plot_javelance() -> Figure:
+    # Create a grid large enough for the Javelance
+    fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE.translate(np.array([-1, -1])))
+    offset = np.array([0, 0])
+
+    # Plot JAVELANCE_FORBIDDEN
+    plot_shape(
+        fig,
+        JAVELANCE_FORBIDDEN.translate(offset).nodes,
+        JAVELANCE_FORBIDDEN.translate(offset).edges,
+        node_color=JAVELANCE_FORBIDDEN.mean_color,
+        edge_color=JAVELANCE_FORBIDDEN.mean_color,
+    )
+
+    # Plot JAVELANCE
+    javelance_offset = JAVELANCE.translate(offset)
+    plot_shape(
+        fig,
+        javelance_offset.nodes,
+        javelance_offset.edges,
+        node_color=javelance_offset.mean_color,
+        edge_color=javelance_offset.mean_color,
+    )
+    return fig

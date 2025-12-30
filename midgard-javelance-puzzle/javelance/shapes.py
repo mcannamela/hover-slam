@@ -2,7 +2,7 @@ import functools
 import operator
 from dataclasses import dataclass
 from typing import Self, Any
-
+from plotly.graph_objs import Figure
 import matplotlib.colors as mcolors
 import numpy as np
 from numpy import dtype, ndarray
