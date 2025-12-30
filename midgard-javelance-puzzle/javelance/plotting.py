@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from plotly.graph_objs import Figure
 
+from javelance.packing import PackingSolution
 from javelance.shapes import JAVELANCE, JAVELANCE_FORBIDDEN, JAVELANCE_GRID_SHAPE, Shape
 
 # Set default renderer to always open plots in browser
@@ -424,4 +425,38 @@ def plot_javelance() -> Figure:
         node_color=javelance_offset.mean_color,
         edge_color=javelance_offset.mean_color,
     )
+    return fig
+
+
+def plot_packing_solution(solution: PackingSolution, title: str = None) -> Figure:
+    # Create visualization
+    fig = plot_javelance()
+
+    if title:
+        fig.update_layout(title=title)
+
+    # Plot each placed piece with a distinct jittered color
+    for i, (name, shape) in enumerate(solution.placements):
+        # Use different base colors for different piece types
+        if name == "DOODAD":
+            base_color = "rgb(0, 200, 0)"  # Green
+        elif name == "GIZMO":
+            base_color = "rgb(0, 0, 200)"  # Blue
+        else:  # SPROCKET
+            base_color = "rgb(200, 0, 200)"  # Magenta
+
+        # Create a shape with the base color to use jittered_color
+        colored_shape = Shape(
+            nodes=shape.nodes, edges=shape.edges, mean_color=base_color
+        )
+        color = colored_shape.jittered_color(jitter_amount=30)
+
+        plot_shape(
+            fig,
+            shape.nodes,
+            shape.edges,
+            node_color=color,
+            edge_color=color,
+            alpha=0.8,
+        )
     return fig

@@ -597,8 +597,8 @@ SPROCKETS = [
     ),
 ]
 
-JAVELANCE_COLOR = "Bisque"
-JAVELANCE_FORBIDDEN_COLOR = "LightPink"
+JAVELANCE_COLOR = "Maroon"
+JAVELANCE_FORBIDDEN_COLOR = "LightGrey"
 JAVELANCE_VBOX = Shape.vertical_box(width=21, height=11, mean_color=JAVELANCE_COLOR)
 JAVELANCE_GRID_SHAPE = Shape.vertical_box(
     width=23, height=13, mean_color=JAVELANCE_COLOR

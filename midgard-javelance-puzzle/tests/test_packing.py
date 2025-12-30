@@ -2,8 +2,10 @@
 
 import numpy as np
 import pytest
+from plotly.graph_objs import Figure
 
 from javelance.packing import PackingProblem, PackingSolution, greedy_pack
+from javelance.plotting import plot_javelance, plot_packing_solution
 from javelance.shapes import Shape
 
 
@@ -189,13 +191,15 @@ def test_greedy_pack_line_tiling():
     """Test packing a line with smaller line segments."""
     # Create a horizontal line of 6 nodes
     nodes = np.array([[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0]])
-    edges = np.array([
-        [[0, 0], [1, 0]],
-        [[1, 0], [2, 0]],
-        [[2, 0], [3, 0]],
-        [[3, 0], [4, 0]],
-        [[4, 0], [5, 0]],
-    ])
+    edges = np.array(
+        [
+            [[0, 0], [1, 0]],
+            [[1, 0], [2, 0]],
+            [[2, 0], [3, 0]],
+            [[3, 0], [4, 0]],
+            [[4, 0], [5, 0]],
+        ]
+    )
     target = Shape(nodes=nodes, edges=edges)
 
     # Create a piece that is a line of 2 nodes
@@ -265,7 +269,9 @@ def test_javelance_packing():
         print(f"\nStrategy: {strategy}")
         print(f"  Coverage: {solution.coverage:.2%}")
         print(f"  Total cost: {solution.total_cost:.2f}")
-        print(f"  Covered nodes: {len(solution.covered_nodes)}/{len(JAVELANCE.node_set())}")
+        print(
+            f"  Covered nodes: {len(solution.covered_nodes)}/{len(JAVELANCE.node_set())}"
+        )
         print(f"  Pieces placed: {len(solution.placements)}")
 
         # Count piece types
@@ -281,12 +287,11 @@ def test_javelance_packing():
 
 def test_javelance_packing_visualization():
     """Visualize the JAVELANCE packing solution."""
-    from javelance.plotting import plot_hex_grid, plot_shape
+    from javelance.plotting import plot_shape
     from javelance.shapes import (
         DOODADS,
         GIZMOS,
         JAVELANCE,
-        JAVELANCE_FORBIDDEN,
         JAVELANCE_FORBIDDEN_EDGES,
         SPROCKETS,
     )
@@ -312,57 +317,7 @@ def test_javelance_packing_visualization():
     print(f"Total cost: {solution.total_cost:.2f}")
     print(f"Pieces placed: {len(solution.placements)}")
 
-    # Create visualization
-    min_addr, max_addr = JAVELANCE.bounding_addresses()
-    grid_width = max_addr[0] - min_addr[0] + 3
-    grid_height = max_addr[1] - min_addr[1] + 3
-
-    fig = plot_hex_grid(grid_width, grid_height)
-
-    # Plot the JAVELANCE target shape (in background)
-    plot_shape(
-        fig,
-        JAVELANCE.nodes,
-        JAVELANCE.edges,
-        node_color=JAVELANCE.mean_color,
-        edge_color=JAVELANCE.mean_color,
-        alpha=0.3,
-    )
-
-    # Plot forbidden nodes/edges
-    plot_shape(
-        fig,
-        JAVELANCE_FORBIDDEN.nodes,
-        JAVELANCE_FORBIDDEN.edges,
-        node_color=JAVELANCE_FORBIDDEN.mean_color,
-        edge_color=JAVELANCE_FORBIDDEN.mean_color,
-        alpha=0.5,
-    )
-
-    # Plot each placed piece with a distinct jittered color
-    for i, (name, shape) in enumerate(solution.placements):
-        # Use different base colors for different piece types
-        if name == "DOODAD":
-            base_color = "rgb(0, 200, 0)"  # Green
-        elif name == "GIZMO":
-            base_color = "rgb(0, 0, 200)"  # Blue
-        else:  # SPROCKET
-            base_color = "rgb(200, 0, 200)"  # Magenta
-
-        # Create a shape with the base color to use jittered_color
-        colored_shape = Shape(
-            nodes=shape.nodes, edges=shape.edges, mean_color=base_color
-        )
-        color = colored_shape.jittered_color(jitter_amount=30)
-
-        plot_shape(
-            fig,
-            shape.nodes,
-            shape.edges,
-            node_color=color,
-            edge_color=color,
-            alpha=0.8,
-        )
+    fig = plot_packing_solution(solution)
 
     fig.show()
 
