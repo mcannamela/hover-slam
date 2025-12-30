@@ -1,12 +1,14 @@
 """Module for solving shape packing problems on hexagonal grids."""
 
+import math
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Callable, Self
+from typing import Callable, Self, Any
 
 import numpy as np
 from loguru import logger
+from numpy import dtype, ndarray
 from tqdm import tqdm
 
 from javelance.shapes import Shape
@@ -331,83 +333,119 @@ def greedy_pack(
     if selector_fn is None:
         selector_fn = selector_min_priority
 
-    occupied_nodes: set[Shape.Node] = set()
-    placements: list[tuple[str, Shape, float]] = []
-    target_nodes = problem.target.node_set()
-
     # Generate all possible placements for all pieces
-    all_candidates: list[Candidate] = []
-    with log_elapsed("generate_all_placements"):
+    valid_candidates: list[Candidate] = []
+    with log_elapsed("initialize_valid_placements"):
         for name, shape, cost in problem.pieces:
             piece_placements = problem.generate_all_placements(shape)
             for placement in piece_placements:
                 num_nodes = len(placement.node_set())
-                all_candidates.append((name, placement, cost, num_nodes))
+                valid_candidates.append((name, placement, cost, num_nodes))
 
     if not recompute_heuristic:
-        # Compute priorities once upfront for efficiency
-        with log_elapsed("compute_priorities_once"):
-            logger.info(f"There are {len(all_candidates)} candidate placements.")
-            priorities = heuristic_fn(problem, occupied_nodes, all_candidates)
+        placements = _greedy_pack_once(heuristic_fn, problem, valid_candidates)
+    else:
+        placements = _greedy_pack_iter(
+            heuristic_fn, problem, selector_fn, valid_candidates
+        )
+    target_nodes = problem.target.node_set()
+    return PackingSolution.from_placements(placements, target_nodes)
 
-        # Zip priorities with candidates
-        prioritized_all: list[PrioritizedCandidate] = [
-            (priority, name, placement, cost, num_nodes)
-            for priority, (name, placement, cost, num_nodes) in zip(
-                priorities, all_candidates
-            )
+
+def _greedy_pack_iter(
+    heuristic_fn: Callable[
+        [PackingProblem, set[tuple[int, int]], list[tuple[str, Shape, float, int]]],
+        ndarray[tuple[Any, ...], dtype[Any]],
+    ]
+    | Callable[..., ndarray[tuple[Any, ...], dtype[Any]]],
+    problem: PackingProblem,
+    selector_fn: Callable[..., tuple[float, str, Shape, float, int] | None],
+    valid_candidates: list[tuple[str, Shape, float, int]],
+) -> list[tuple[str, Shape, float]]:
+    occupied_nodes: set[Shape.Node] = set()
+    placements: list[tuple[str, Shape, float]] = []
+
+    # Recompute heuristic after each placement (adaptive but slower)
+    n_target_nodes = len(problem.target.node_set())
+    min_placement_size = min(
+        len(placement.node_set()) for _, placement, _, _ in valid_candidates
+    )
+    max_iter = math.ceil(n_target_nodes / min_placement_size)
+    logger.info(
+        f"There are {n_target_nodes} target nodes and {len(valid_candidates)} candidate placements with min size {min_placement_size}: max_iter = {max_iter}."
+    )
+    for _ in tqdm(range(max_iter)):
+        # Find all currently valid candidates and their indices
+        valid_indices = [
+            idx
+            for idx, (name, placement, cost, num_nodes) in enumerate(valid_candidates)
+            if problem.is_valid_placement(placement, occupied_nodes)
         ]
 
-        # Sort by priority once
-        prioritized_all.sort(key=lambda x: x[0])
+        if not valid_indices:
+            # No more valid placements
+            break
 
-        # Greedy selection from pre-computed priorities
-        with log_elapsed("greedy_select_once"):
-            for priority, name, placement, cost, num_nodes in prioritized_all:
-                if problem.is_valid_placement(placement, occupied_nodes):
-                    placements.append((name, placement, cost))
-                    occupied_nodes |= placement.node_set()
-    else:
-        # Recompute heuristic after each placement (adaptive but slower)
-        max_iter = len(all_candidates)
-        logger.info(f"There are {max_iter} candidate placements.")
-        for _ in tqdm(range(max_iter)):
-            # Find all currently valid candidates and their indices
-            valid_indices = [
-                idx
-                for idx, (name, placement, cost, num_nodes) in enumerate(all_candidates)
-                if problem.is_valid_placement(placement, occupied_nodes)
-            ]
+        # Compute priorities for all candidates (heuristic may need full context)
+        priorities = heuristic_fn(problem, occupied_nodes, valid_candidates)
 
-            if not valid_indices:
-                # No more valid placements
-                break
+        # Extract valid prioritized candidates
+        prioritized_candidates: list[PrioritizedCandidate] = [
+            (priorities[idx], *valid_candidates[idx]) for idx in valid_indices
+        ]
 
-            # Compute priorities for all candidates (heuristic may need full context)
-            priorities = heuristic_fn(problem, occupied_nodes, all_candidates)
+        # Select a placement using the selector function
+        selected = selector_fn(prioritized_candidates)
+        if selected is None:
+            # Selector chose to stop
+            break
 
-            # Extract valid prioritized candidates
-            prioritized_candidates: list[PrioritizedCandidate] = [
-                (priorities[idx], *all_candidates[idx]) for idx in valid_indices
-            ]
+        priority, name, placement, cost, num_nodes = selected
 
-            # Select a placement using the selector function
-            selected = selector_fn(prioritized_candidates)
-            if selected is None:
-                # Selector chose to stop
-                break
+        # Place the selected piece
+        placements.append((name, placement, cost))
+        occupied_nodes |= placement.node_set()
 
-            priority, name, placement, cost, num_nodes = selected
+        # filter newly invalid placements
+        valid_candidates = [
+            c
+            for c in valid_candidates
+            if problem.is_valid_placement(c[1], occupied_nodes)
+        ]
+    return placements
 
-            # Place the selected piece
-            placements.append((name, placement, cost))
-            occupied_nodes |= placement.node_set()
 
-            # filter newly invalid placements
-            all_candidates = [
-                c
-                for c in all_candidates
-                if problem.is_valid_placement(c[1], occupied_nodes)
-            ]
+def _greedy_pack_once(
+    heuristic_fn: Callable[
+        [PackingProblem, set[tuple[int, int]], list[tuple[str, Shape, float, int]]],
+        ndarray[tuple[Any, ...], dtype[Any]],
+    ]
+    | Callable[..., ndarray[tuple[Any, ...], dtype[Any]]],
+    problem: PackingProblem,
+    valid_candidates: list[tuple[str, Shape, float, int]],
+) -> list[tuple[str, Shape, float]]:
+    occupied_nodes: set[Shape.Node] = set()
+    placements: list[tuple[str, Shape, float]] = []
+    # Compute priorities once upfront for efficiency
+    with log_elapsed("compute_priorities_once"):
+        logger.info(f"There are {len(valid_candidates)} candidate placements.")
+        priorities = heuristic_fn(problem, occupied_nodes, valid_candidates)
 
-    return PackingSolution.from_placements(placements, target_nodes)
+    # Zip priorities with candidates
+    prioritized_all: list[PrioritizedCandidate] = [
+        (priority, name, placement, cost, num_nodes)
+        for priority, (name, placement, cost, num_nodes) in zip(
+            priorities, valid_candidates
+        )
+    ]
+
+    # Sort by priority once
+    prioritized_all.sort(key=lambda x: x[0])
+
+    # Greedy selection from pre-computed priorities
+    with log_elapsed("greedy_select_once"):
+        for priority, name, placement, cost, num_nodes in prioritized_all:
+            if problem.is_valid_placement(placement, occupied_nodes):
+                placements.append((name, placement, cost))
+                occupied_nodes |= placement.node_set()
+    return placements
