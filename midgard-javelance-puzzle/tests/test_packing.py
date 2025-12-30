@@ -72,6 +72,106 @@ def test_is_valid_placement_forbidden_edges():
     assert not problem_with_forbidden.is_valid_placement(piece, set())
 
 
+def test_is_valid_placement_with_allowed_region():
+    """Test that is_valid_placement works with allowed region."""
+    # Create a 3x3 target
+    target = Shape.box(width=3, height=3)
+
+    # Create a 2x2 allowed region adjacent to target
+    allowed = Shape.box(width=2, height=2).translate(np.array([3, 0]))
+
+    # Create a piece that spans both target and allowed
+    piece = Shape.box(width=2, height=2).translate(np.array([2, 0]))
+
+    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set(), allowed=allowed)
+
+    # Should be valid - has nodes in target and all nodes in target ∪ allowed
+    assert problem.is_valid_placement(piece, set())
+
+
+def test_is_valid_placement_all_nodes_in_allowed_only():
+    """Test that placement with all nodes in allowed (but not target) is invalid."""
+    # Create a 3x3 target
+    target = Shape.box(width=3, height=3)
+
+    # Create a 2x2 allowed region adjacent to target
+    allowed = Shape.box(width=2, height=2).translate(np.array([3, 0]))
+
+    # Create a piece entirely in allowed region (not touching target)
+    piece = Shape.box(width=2, height=2).translate(np.array([3, 0]))
+
+    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set(), allowed=allowed)
+
+    # Should be invalid - no nodes in target
+    assert not problem.is_valid_placement(piece, set())
+
+
+def test_is_valid_placement_nodes_outside_target_and_allowed():
+    """Test that placement with nodes outside target ∪ allowed is invalid."""
+    # Create a 3x3 target
+    target = Shape.box(width=3, height=3)
+
+    # Create a 2x2 allowed region adjacent to target
+    allowed = Shape.box(width=2, height=2).translate(np.array([3, 0]))
+
+    # Create a piece that goes outside both target and allowed
+    piece = Shape.box(width=2, height=2).translate(np.array([10, 10]))
+
+    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set(), allowed=allowed)
+
+    # Should be invalid - nodes outside target ∪ allowed
+    assert not problem.is_valid_placement(piece, set())
+
+
+def test_is_valid_placement_backward_compatibility():
+    """Test that allowed=None behaves like the old implementation."""
+    # Create a 3x3 box as target
+    target = Shape.box(width=3, height=3)
+
+    # Create a piece that fits
+    piece = Shape.box(width=2, height=2)
+
+    # Problem with allowed=None (backward compatible)
+    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set(), allowed=None)
+
+    # Should be valid
+    assert problem.is_valid_placement(piece, set())
+
+    # Create a piece that goes outside target
+    piece_outside = piece.translate(np.array([5, 5]))
+    assert not problem.is_valid_placement(piece_outside, set())
+
+
+def test_generate_all_placements_with_allowed_region():
+    """Test generating placements with an allowed region."""
+    # Create a small 2x2 target
+    target = Shape.box(width=2, height=2)
+
+    # Create a 2x2 allowed region adjacent to target
+    allowed = Shape.box(width=2, height=2).translate(np.array([2, 0]))
+
+    # Create a 2x2 piece
+    piece = Shape.box(width=2, height=2)
+
+    problem = PackingProblem(target=target, pieces=[], forbidden_edges=set(), allowed=allowed)
+
+    placements = problem.generate_all_placements(piece)
+
+    # Should find placements that:
+    # 1. Fit entirely in target (1 placement at origin)
+    # 2. Span target and allowed (1 placement at [1, 0])
+    # But NOT placements entirely in allowed (would have no target nodes)
+
+    # Verify all placements have at least one node in target
+    target_nodes = target.node_set()
+    for placement in placements:
+        placement_nodes = placement.node_set()
+        assert placement_nodes & target_nodes, f"Placement {placement_nodes} has no target nodes"
+
+    # Should have at least 2 placements (one at origin, one spanning)
+    assert len(placements) >= 2
+
+
 def test_generate_all_placements_simple():
     """Test generating all placements for a simple piece."""
     # Create a 4x4 target

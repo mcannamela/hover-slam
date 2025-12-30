@@ -53,24 +53,36 @@ class PlacedShape:
 class PackingProblem:
     """Definition of a shape packing problem."""
 
-    target: Shape  # The shape to pack into
+    target: Shape  # Nodes that must be covered
     pieces: list[tuple[str, Shape, float]]  # (name, shape, cost) for each piece type
     forbidden_edges: set[Shape.Edge]  # Edges that cannot be used
+    allowed: Shape | None = None  # Additional nodes that may be covered (optional)
 
     def is_valid_placement(self, shape: Shape, occupied_nodes: set[Shape.Node]) -> bool:
         """
         Check if a shape placement is valid.
 
         A placement is valid if:
-        1. All nodes are within the target shape
-        2. No nodes overlap with already occupied nodes
-        3. No edges are in the forbidden edge set
+        1. At least one node is in the target shape
+        2. All nodes are within target ∪ allowed
+        3. No nodes overlap with already occupied nodes
+        4. No edges are in the forbidden edge set
         """
         shape_nodes = shape.node_set()
         target_nodes = self.target.node_set()
 
-        # Check if all nodes are in target
-        if not shape_nodes <= target_nodes:
+        # Compute allowed nodes (target ∪ allowed)
+        if self.allowed is not None:
+            allowed_nodes = target_nodes | self.allowed.node_set()
+        else:
+            allowed_nodes = target_nodes
+
+        # Check if at least one node is in target
+        if not (shape_nodes & target_nodes):
+            return False
+
+        # Check if all nodes are in allowed region (target ∪ allowed)
+        if not shape_nodes <= allowed_nodes:
             return False
 
         # Check for overlaps with occupied nodes
@@ -86,14 +98,20 @@ class PackingProblem:
 
     def generate_all_placements(self, shape: Shape) -> list[Shape]:
         """
-        Generate all valid placements of a shape within the target.
+        Generate all valid placements of a shape within the target ∪ allowed region.
 
         Returns a list of translated shapes representing all valid placements.
         """
         valid_placements = []
 
-        # Get the bounding box of the target
-        target_min, target_max = self.target.bounding_addresses()
+        # Get the bounding box of the allowed region (target ∪ allowed)
+        if self.allowed is not None:
+            # Create union of target and allowed for bounding box calculation
+            search_region = self.target.union(self.allowed)
+        else:
+            search_region = self.target
+
+        search_min, search_max = search_region.bounding_addresses()
 
         # Get all unique rotations
         unique_rotations = shape.unique_originated_rotations()
@@ -105,18 +123,18 @@ class PackingProblem:
             shape_height = rot_max[1] - rot_min[1]
 
             # Try all positions where the shape could fit
-            for i in range(target_min[0], target_max[0] + 2):
-                for j in range(target_min[1], target_max[1] + 2):
+            for i in range(search_min[0], search_max[0] + 2):
+                for j in range(search_min[1], search_max[1] + 2):
                     offset = np.array([i, j])
                     translated = rotated.translate(offset)
 
                     # Quick bounds check
                     trans_min, trans_max = translated.bounding_addresses()
                     if (
-                        trans_min[0] < target_min[0]
-                        or trans_min[1] < target_min[1]
-                        or trans_max[0] > target_max[0]
-                        or trans_max[1] > target_max[1]
+                        trans_min[0] < search_min[0]
+                        or trans_min[1] < search_min[1]
+                        or trans_max[0] > search_max[0]
+                        or trans_max[1] > search_max[1]
                     ):
                         continue
 
