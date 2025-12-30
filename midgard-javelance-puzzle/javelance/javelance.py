@@ -10,7 +10,7 @@ JAVELANCE_FORBIDDEN_COLOR = "LightGrey"
 JAVELANCE_VBOX = Shape.vertical_box(width=21, height=11, mean_color=JAVELANCE_COLOR)
 JAVELANCE_GRID_SHAPE = Shape.vertical_box(
     width=23, height=13, mean_color=JAVELANCE_COLOR
-)
+).translate(np.array([-1, -1]))
 JAVELANCE_FORBIDDEN_NODES = functools.reduce(
     operator.or_,
     [

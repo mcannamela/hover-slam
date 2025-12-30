@@ -405,7 +405,7 @@ def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1, alpha=0.4):
 
 def plot_javelance() -> Figure:
     # Create a grid large enough for the Javelance
-    fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE.translate(np.array([-1, -1])))
+    fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE)
     offset = np.array([0, 0])
 
     # Plot JAVELANCE_FORBIDDEN
