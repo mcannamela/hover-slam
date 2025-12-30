@@ -171,7 +171,9 @@ def heuristic_cost_per_node(
     all_candidates: list[Candidate],
 ) -> np.ndarray:
     """Prioritize pieces with lowest cost per node."""
-    priorities = np.array([cost / num_nodes for _, _, cost, num_nodes in all_candidates])
+    priorities = np.array(
+        [cost / num_nodes for _, _, cost, num_nodes in all_candidates]
+    )
     return priorities
 
 
@@ -223,7 +225,7 @@ def heuristic_expected_coverage_cost(
 
         # Find all placements that cover this node
         for cand_name, cand_placement, cand_cost, cand_num_nodes in all_candidates:
-            if node in cand_placement.node_set():
+            if node in cand_placement.node_set() - occupied_nodes:
                 total_cost += cand_cost
                 total_coverage += cand_num_nodes
 
@@ -232,17 +234,21 @@ def heuristic_expected_coverage_cost(
             total_cost / total_coverage if total_coverage > 0 else 0
         )
 
+    logger.debug(
+        f"Most expensive node expected cost: {max(node_coverage_cost.values())} vs mean of {np.mean(list(node_coverage_cost.values()))}"
+    )
+
     # Compute priorities for all candidates
     priorities = np.zeros(len(all_candidates))
     for idx, (name, placement, cost, num_nodes) in enumerate(all_candidates):
         # Sum of node expected coverage costs for all nodes in this placement
-        total_node_value = sum(
+        expected_placement_coverage_costs = sum(
             node_coverage_cost.get(node, 0) for node in placement.node_set()
         )
 
         # Prioritize low-cost placements covering high-value nodes
-        if total_node_value > 0:
-            priorities[idx] = cost / total_node_value
+        if expected_placement_coverage_costs > 0:
+            priorities[idx] = cost / expected_placement_coverage_costs
         else:
             priorities[idx] = float("inf")  # No valuable nodes covered
 
@@ -347,7 +353,9 @@ def greedy_pack(
         # Zip priorities with candidates
         prioritized_all: list[PrioritizedCandidate] = [
             (priority, name, placement, cost, num_nodes)
-            for priority, (name, placement, cost, num_nodes) in zip(priorities, all_candidates)
+            for priority, (name, placement, cost, num_nodes) in zip(
+                priorities, all_candidates
+            )
         ]
 
         # Sort by priority once
@@ -380,8 +388,7 @@ def greedy_pack(
 
             # Extract valid prioritized candidates
             prioritized_candidates: list[PrioritizedCandidate] = [
-                (priorities[idx], *all_candidates[idx])
-                for idx in valid_indices
+                (priorities[idx], *all_candidates[idx]) for idx in valid_indices
             ]
 
             # Select a placement using the selector function

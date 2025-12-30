@@ -28,8 +28,11 @@ def main():
     # Try different strategies
     logger.info("\n=== Testing different greedy strategies ===")
 
-    for strategy in ["largest_first", "expected_coverage_cost"]:
-        solution = greedy_pack(problem, strategy=strategy)
+    for strategy, kwargs in [
+        ("largest_first", {}),
+        ("expected_coverage_cost", {"recompute_heuristic": True}),
+    ]:
+        solution = greedy_pack(problem, strategy=strategy, **kwargs)
 
         logger.info(f"\nStrategy: {strategy}")
         logger.info(f"  Coverage: {solution.coverage:.2%}")
