@@ -1,5 +1,5 @@
 import numpy as np
-from javelance.plotting import plot_hex_grid, plot_shape, plot_small_shape
+from javelance.plotting import plot_hex_grid, plot_shape, plot_small_shape, plot_boundary_edges
 
 
 def test_plot_hex_grid_with_exclusions():
@@ -294,5 +294,115 @@ def test_plot_shape_with_numeric_labels():
     fig.show()
 
 
+def test_plot_boundary_edges_default_color():
+    """Test plotting boundary edges with default jittered color."""
+    from javelance.shapes import Shape
+
+    # Create the grid
+    fig = plot_hex_grid(6, 5)
+
+    # Create a shape
+    nodes = np.array([[1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [3, 2]])
+    edges = np.array([
+        [[1, 1], [2, 1]],
+        [[2, 1], [3, 1]],
+        [[1, 2], [2, 2]],
+        [[2, 2], [3, 2]],
+        [[1, 1], [1, 2]],
+        [[2, 1], [2, 2]],
+    ])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(100, 150, 200)")
+
+    # Plot the shape first
+    plot_shape(fig, shape.nodes, shape.edges, node_color=shape.mean_color, edge_color=shape.mean_color, alpha=0.3)
+
+    # Plot boundary edges with default jittered color
+    plot_boundary_edges(fig, shape)
+
+    fig.show()
+
+
+def test_plot_boundary_edges_custom_color():
+    """Test plotting boundary edges with custom color."""
+    from javelance.shapes import Shape
+
+    # Create the grid
+    fig = plot_hex_grid(6, 5)
+
+    # Create a shape
+    nodes = np.array([[1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [3, 2]])
+    edges = np.array([
+        [[1, 1], [2, 1]],
+        [[2, 1], [3, 1]],
+        [[1, 2], [2, 2]],
+        [[2, 2], [3, 2]],
+        [[1, 1], [1, 2]],
+        [[2, 1], [2, 2]],
+    ])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(100, 150, 200)")
+
+    # Plot the shape first
+    plot_shape(fig, shape.nodes, shape.edges, node_color=shape.mean_color, edge_color=shape.mean_color, alpha=0.3)
+
+    # Plot boundary edges with custom red color
+    plot_boundary_edges(fig, shape, color="rgb(255, 0, 0)", width=6)
+
+    fig.show()
+
+
+def test_plot_boundary_edges_alpha():
+    """Test plotting boundary edges with custom alpha."""
+    from javelance.shapes import Shape
+
+    # Create the grid
+    fig = plot_hex_grid(6, 5)
+
+    # Create a shape
+    nodes = np.array([[1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [3, 2]])
+    edges = np.array([
+        [[1, 1], [2, 1]],
+        [[2, 1], [3, 1]],
+        [[1, 2], [2, 2]],
+        [[2, 2], [3, 2]],
+        [[1, 1], [1, 2]],
+        [[2, 1], [2, 2]],
+    ])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(100, 150, 200)")
+
+    # Plot the shape first
+    plot_shape(fig, shape.nodes, shape.edges, node_color=shape.mean_color, edge_color=shape.mean_color, alpha=0.5)
+
+    # Plot boundary edges with custom alpha (semi-transparent)
+    plot_boundary_edges(fig, shape, color="rgb(0, 255, 0)", alpha=0.5, width=7)
+
+    fig.show()
+
+
+def test_plot_boundary_edges_l_shape():
+    """Test plotting boundary edges for an L-shaped figure."""
+    from javelance.shapes import Shape
+
+    # Create the grid
+    fig = plot_hex_grid(6, 5)
+
+    # Create an L-shape
+    nodes = np.array([[0, 0], [1, 0], [2, 0], [0, 1], [0, 2]])
+    edges = np.array([
+        [[0, 0], [1, 0]],
+        [[1, 0], [2, 0]],
+        [[0, 0], [0, 1]],
+        [[0, 1], [0, 2]],
+    ])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(200, 100, 50)")
+
+    # Plot the shape first
+    plot_shape(fig, shape.nodes, shape.edges, node_color=shape.mean_color, edge_color=shape.mean_color, alpha=0.4)
+
+    # Plot boundary edges
+    plot_boundary_edges(fig, shape, width=6)
+
+    fig.show()
+
+
 if __name__ == "__main__":
-    test_plot_shape_with_labels_dict()
+    test_plot_boundary_edges_default_color()

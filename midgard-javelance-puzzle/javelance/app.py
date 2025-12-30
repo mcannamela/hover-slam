@@ -45,7 +45,11 @@ def create_base_figure():
 
     for region_id, region in JAVELANCE_REGIONS.items():
         region.plot(
-            fig, hex_size=HEX_SIZE, interactive=True, labels=lambda i, j: region_id
+            fig,
+            hex_size=HEX_SIZE,
+            interactive=True,
+            # labels=lambda i, j: region_id,
+            plot_boundary=True,
         )
 
     JAVELANCE_FORBIDDEN.plot(fig, hex_size=HEX_SIZE, alpha=0.5)

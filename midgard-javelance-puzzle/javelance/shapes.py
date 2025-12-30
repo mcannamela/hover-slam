@@ -5,6 +5,7 @@ import matplotlib.colors as mcolors
 import numpy as np
 from numpy import dtype, ndarray
 
+
 # Rotation matrices for hex grid transformations
 # Applied as coords @ matrix.T for rotations at 0°, 60°, 120°, 180°, 240°, 300°
 ROTATION_MATRICES = [
@@ -353,12 +354,13 @@ class Shape:
         inset_ratio=0.7,
         interactive=True,
         labels=None,
+        plot_boundary=False,
     ):
         """Plot the shape on the given figure"""
-        from javelance.plotting import plot_shape
+        from javelance.plotting import plot_shape, plot_boundary_edges
 
         color = self.jittered_color()
-        return plot_shape(
+        f = plot_shape(
             fig,
             self.nodes,
             self.edges,
@@ -371,6 +373,18 @@ class Shape:
             interactive,
             labels,
         )
+        if plot_boundary:
+            f_ = plot_boundary_edges(
+                f,
+                self,
+                hex_size=hex_size,
+                color=color,
+                alpha=alpha,
+                jitter_amount=0,
+            )
+            return f_
+        else:
+            return f
 
     def jittered_color(self, jitter_amount=20):
         """

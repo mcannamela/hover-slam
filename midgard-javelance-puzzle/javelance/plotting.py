@@ -395,6 +395,76 @@ def plot_shape(
     return fig
 
 
+def plot_boundary_edges(
+    fig,
+    shape,
+    hex_size=1.0,
+    color=None,
+    alpha=1.0,
+    width=5,
+    jitter_amount=30,
+):
+    """
+    Plot the boundary edges of a shape with thick lines.
+
+    Parameters:
+    - fig: plotly Figure object to add traces to
+    - shape: Shape object whose boundary edges to plot
+    - hex_size: circumradius of hexagons
+    - color: color for edge lines (if None, uses shape's jittered color)
+    - alpha: transparency for edges (0-1)
+    - width: line width for boundary edges
+    - jitter_amount: amount to jitter color if using shape's color
+    """
+    from javelance.shapes import Shape
+
+    # Get boundary edges
+    boundary_edges = shape.boundary_edges()
+
+    if len(boundary_edges) == 0:
+        return fig
+
+    # Determine edge color
+    if color is None:
+        # Use shape's jittered color
+        edge_color = shape.jittered_color(jitter_amount=jitter_amount)
+    else:
+        edge_color = color
+
+    # Convert edge color to rgba format with alpha
+    if edge_color.startswith("rgb"):
+        # Already in rgb format, convert to rgba
+        edge_rgba_color = edge_color.replace("rgb", "rgba").replace(
+            ")", f", {alpha})"
+        )
+    else:
+        # Named color, use directly with opacity parameter
+        edge_rgba_color = edge_color
+
+    # Plot each boundary edge
+    for edge in boundary_edges:
+        hex1 = edge[0]
+        hex2 = edge[1]
+
+        # Get the shared edge vertices
+        v1, v2 = _shared_edge_vertices(hex1, hex2, hex_size)
+
+        # Plot the edge without jitter (on the actual boundary)
+        fig.add_trace(
+            go.Scatter(
+                x=[v1[0], v2[0]],
+                y=[v1[1], v2[1]],
+                mode="lines",
+                line=dict(color=edge_rgba_color, width=width),
+                opacity=alpha,
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+    return fig
+
+
 def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1, alpha=0.4):
     """
     Plot a small shape (4 nodes or fewer) on the hexagonal grid.
