@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from javelance.shapes import Shape, DOODADS, GIZMOS, SPROCKETS
-from javelance.plotting import plot_hex_grid, plot_shape
+from javelance.plotting import plot_hex_grid, plot_shape, plot_shape_hexes
 
 
 def test_valid_shape():
@@ -594,8 +594,8 @@ def test_unique_originated_rotations_preserve_color():
 
 def test_plot_doodads_rotations():
     """Visual test: Plot all rotations of DOODADS shapes."""
-    fig = plot_hex_grid(25, 15)
 
+    positioned_shapes = []
     for shape_idx, shape in enumerate(DOODADS):
         unique_rots = shape.unique_originated_rotations()
 
@@ -606,26 +606,34 @@ def test_plot_doodads_rotations():
             col = rot_idx % 3
 
             # Get bounding box to ensure proper spacing
-            min_coords, max_coords = rotated.bounding_addresses()
-            shape_width = max_coords[0] - min_coords[0] + 1
-            shape_height = max_coords[1] - min_coords[1] + 1
+            shape_width = rotated.width()
+            shape_height = rotated.height()
 
             # Add 1 hex spacing between shapes
-            base_offset = np.array([col * (shape_width + 1), row * (shape_height + 1)])
+            offset_h = row * (shape_height + 2)
+            offset_w = col * (shape_width + 2) - offset_h // 2
+            base_offset = np.array([offset_w, offset_h])
 
             # Translate the shape to its position
             positioned = rotated.translate(base_offset)
 
             # Use jittered color for variety
             color = positioned.jittered_color(jitter_amount=15)
+            positioned_shapes.append((positioned, color))
 
-            plot_shape(
-                fig,
-                positioned.nodes,
-                positioned.edges,
-                node_color=color,
-                edge_color=color,
-            )
+    w = sum([s.width() + 4 for s, _ in positioned_shapes])
+    h = sum([s.height() + 4 for s, _ in positioned_shapes])
+
+    fig = plot_shape_hexes(Shape.vertical_box(w // 2, h // 3))
+
+    for positioned, color in positioned_shapes:
+        plot_shape(
+            fig,
+            positioned.nodes,
+            positioned.edges,
+            node_color=color,
+            edge_color=color,
+        )
 
     fig.show()
 
@@ -1307,7 +1315,9 @@ def test_boundary_edges_disjoint_from_interior():
         interior = shape.interior_edges()
 
         # Should be disjoint
-        assert interior & boundary == set(), f"Failed for shape with {len(shape.nodes)} nodes"
+        assert interior & boundary == set(), (
+            f"Failed for shape with {len(shape.nodes)} nodes"
+        )
 
 
 def test_boundary_edges_conservation():
