@@ -969,6 +969,127 @@ def test_difference_no_overlap():
     assert diff.edge_set() == {((0, 0), (1, 0))}
 
 
+def test_union():
+    """Test that union returns the set union of two shapes."""
+    # Create two shapes with overlapping nodes
+    nodes1 = np.array([[0, 0], [1, 0], [2, 0]])
+    nodes2 = np.array([[1, 0], [2, 0], [3, 0]])
+    edges1 = np.array([[[0, 0], [1, 0]], [[1, 0], [2, 0]]])
+    edges2 = np.array([[[1, 0], [2, 0]], [[2, 0], [3, 0]]])
+
+    shape1 = Shape(nodes=nodes1, edges=edges1, mean_color="rgb(255, 0, 0)")
+    shape2 = Shape(nodes=nodes2, edges=edges2)
+
+    union_shape = shape1.union(shape2)
+
+    # Should have all unique nodes from both shapes
+    assert union_shape.node_set() == {(0, 0), (1, 0), (2, 0), (3, 0)}
+
+    # Should have all unique edges from both shapes
+    expected_edges = {((0, 0), (1, 0)), ((1, 0), (2, 0)), ((2, 0), (3, 0))}
+    assert union_shape.edge_set() == expected_edges
+
+    # Should preserve color from first shape
+    assert union_shape.mean_color == "rgb(255, 0, 0)"
+
+
+def test_union_no_overlap():
+    """Test union when shapes don't overlap."""
+    nodes1 = np.array([[0, 0], [1, 0]])
+    nodes2 = np.array([[5, 5], [6, 5]])
+    edges1 = np.array([[[0, 0], [1, 0]]])
+    edges2 = np.array([[[5, 5], [6, 5]]])
+
+    shape1 = Shape(nodes=nodes1, edges=edges1)
+    shape2 = Shape(nodes=nodes2, edges=edges2)
+
+    union_shape = shape1.union(shape2)
+
+    # Should have all nodes from both shapes
+    assert union_shape.node_set() == {(0, 0), (1, 0), (5, 5), (6, 5)}
+    assert union_shape.edge_set() == {((0, 0), (1, 0)), ((5, 5), (6, 5))}
+
+
+def test_union_with_empty_shape():
+    """Test union with an empty shape."""
+    nodes1 = np.array([[0, 0], [1, 0]])
+    edges1 = np.array([[[0, 0], [1, 0]]])
+    shape1 = Shape(nodes=nodes1, edges=edges1, mean_color="rgb(0, 0, 255)")
+
+    # Empty shape
+    empty_shape = Shape.from_sets(nodes=set(), edges=set())
+
+    union_shape = shape1.union(empty_shape)
+
+    # Should be identical to shape1
+    assert union_shape.node_set() == {(0, 0), (1, 0)}
+    assert union_shape.edge_set() == {((0, 0), (1, 0))}
+    assert union_shape.mean_color == "rgb(0, 0, 255)"
+
+
+def test_union_identical_shapes():
+    """Test union of a shape with itself."""
+    nodes = np.array([[0, 0], [1, 0], [2, 0]])
+    edges = np.array([[[0, 0], [1, 0]], [[1, 0], [2, 0]]])
+    shape = Shape(nodes=nodes, edges=edges, mean_color="rgb(0, 128, 0)")
+
+    union_shape = shape.union(shape)
+
+    # Should be identical to original shape
+    assert union_shape.node_set() == {(0, 0), (1, 0), (2, 0)}
+    assert union_shape.edge_set() == {((0, 0), (1, 0)), ((1, 0), (2, 0))}
+    assert union_shape.mean_color == "rgb(0, 128, 0)"
+
+
+def test_union_nodes_only_no_edges():
+    """Test union when shapes have nodes but no common edges."""
+    nodes1 = np.array([[0, 0], [1, 0]])
+    nodes2 = np.array([[2, 0], [3, 0]])
+    # No edges
+    edges1 = np.array([], dtype=int).reshape(0, 2, 2)
+    edges2 = np.array([], dtype=int).reshape(0, 2, 2)
+
+    shape1 = Shape(nodes=nodes1, edges=edges1)
+    shape2 = Shape(nodes=nodes2, edges=edges2)
+
+    union_shape = shape1.union(shape2)
+
+    # Should have all nodes from both shapes
+    assert union_shape.node_set() == {(0, 0), (1, 0), (2, 0), (3, 0)}
+    # Should have no edges
+    assert len(union_shape.edge_set()) == 0
+
+
+def test_union_overlapping_edges_only():
+    """Test union when shapes share some edges."""
+    # Two triangular shapes sharing an edge
+    nodes1 = np.array([[0, 0], [1, 0], [0, 1]])
+    nodes2 = np.array([[1, 0], [0, 1], [1, 1]])
+    edges1 = np.array([[[0, 0], [1, 0]], [[0, 0], [0, 1]], [[1, 0], [0, 1]]])
+    edges2 = np.array([[[1, 0], [0, 1]], [[1, 0], [1, 1]], [[0, 1], [1, 1]]])
+
+    shape1 = Shape(nodes=nodes1, edges=edges1, mean_color="rgb(255, 0, 0)")
+    shape2 = Shape(nodes=nodes2, edges=edges2, mean_color="rgb(0, 0, 255)")
+
+    union_shape = shape1.union(shape2)
+
+    # Should have all unique nodes
+    assert union_shape.node_set() == {(0, 0), (1, 0), (0, 1), (1, 1)}
+
+    # Should have all unique edges (the shared edge [[1,0],[0,1]] appears only once)
+    expected_edges = {
+        ((0, 0), (1, 0)),
+        ((0, 0), (0, 1)),
+        ((0, 1), (1, 0)),  # shared edge
+        ((1, 0), (1, 1)),
+        ((0, 1), (1, 1)),
+    }
+    assert union_shape.edge_set() == expected_edges
+
+    # Should preserve color from first shape
+    assert union_shape.mean_color == "rgb(255, 0, 0)"
+
+
 def test_negative_nodes():
     """Test that negative_nodes returns nodes in bounding box but not in shape."""
     # Create an L-shape

@@ -182,6 +182,13 @@ class Shape:
         edges = self.edge_set() - other.edge_set()
         return Shape.from_sets(nodes=nodes, edges=edges, mean_color=self.mean_color)
 
+    @lru_cache()
+    def union(self, other: Self) -> Self:
+        """The shape whose node and edge sets are the set union of this shape and the other shape's sets."""
+        nodes = self.node_set() | other.node_set()
+        edges = self.edge_set() | other.edge_set()
+        return Shape.from_sets(nodes=nodes, edges=edges, mean_color=self.mean_color)
+
     def node_set(self) -> set[Node]:
         """This Shape's nodes as a set"""
         return self._node_set
