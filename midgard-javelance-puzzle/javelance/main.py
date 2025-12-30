@@ -1,3 +1,5 @@
+from loguru import logger
+
 from javelance.packing import PackingProblem, greedy_pack
 from javelance.plotting import plot_packing_solution
 from javelance.shapes import (
@@ -24,25 +26,25 @@ def main():
     )
 
     # Try different strategies
-    print("\n=== Testing different greedy strategies ===")
+    logger.info("\n=== Testing different greedy strategies ===")
 
     for strategy in ["largest_first", "expected_coverage_cost"]:
         solution = greedy_pack(problem, strategy=strategy)
 
-        print(f"\nStrategy: {strategy}")
-        print(f"  Coverage: {solution.coverage:.2%}")
-        print(f"  Total cost: {solution.total_cost:.2f}")
-        print(
+        logger.info(f"\nStrategy: {strategy}")
+        logger.info(f"  Coverage: {solution.coverage:.2%}")
+        logger.info(f"  Total cost: {solution.total_cost:.2f}")
+        logger.info(
             f"  Covered nodes: {len(solution.covered_nodes)}/{len(JAVELANCE.node_set())}"
         )
-        print(f"  Pieces placed: {len(solution.placements)}")
+        logger.info(f"  Pieces placed: {len(solution.placements)}")
 
         # Count piece types
         piece_counts = {}
         for name, _ in solution.placements:
             piece_counts[name] = piece_counts.get(name, 0) + 1
 
-        print(f"  Piece breakdown: {piece_counts}")
+        logger.info(f"  Piece breakdown: {piece_counts}")
 
         title = f"Strategy: {strategy} (Coverage: {solution.coverage:.2%})"
         fig = plot_packing_solution(solution, title=title)
