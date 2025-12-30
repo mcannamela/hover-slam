@@ -1,7 +1,7 @@
 """Interactive Dash app for visualizing and selecting hexagons."""
 
 import numpy as np
-from dash import Dash, dcc, html, Input, Output, State, callback
+from dash import Dash, dcc, html, Input, Output, State, callback, Patch
 from loguru import logger
 
 from javelance.javelance import JAVELANCE, JAVELANCE_GRID_SHAPE
@@ -31,13 +31,8 @@ def coords_to_hex(x, y, hex_size=1.0):
     return (i, j)
 
 
-def create_figure(selected_nodes=None):
-    """Create the main figure with JAVELANCE_GRID_SHAPE and JAVELANCE."""
-    if selected_nodes is None:
-        selected_nodes = set()
-
-    logger.debug(f"Selected nodes:{selected_nodes}")
-
+def create_base_figure():
+    """Create the base figure with JAVELANCE_GRID_SHAPE and JAVELANCE (no selected nodes)."""
     # Use plot_shape_hexes to plot the grid with interactive hexagons
     fig = plot_shape_hexes(
         JAVELANCE_GRID_SHAPE, hex_size=HEX_SIZE, label_hexes=False, interactive=True
@@ -58,23 +53,6 @@ def create_figure(selected_nodes=None):
         inset_ratio=0.7,
     )
 
-    # Overlay selected nodes using plot_shape
-    if selected_nodes:
-        selected_nodes_array = np.array(sorted(selected_nodes))
-        selected_shape = Shape.from_sets(nodes=selected_nodes, edges=set())
-
-        plot_shape(
-            fig,
-            selected_nodes_array,
-            selected_shape.edges,
-            hex_size=HEX_SIZE,
-            node_color="orange",
-            edge_color="orange",
-            alpha=0.8,
-            inset_ratio=0.85,
-            interactive=True,  # Make selected hexagons clickable to allow deselection
-        )
-
     # Update title
     fig.update_layout(
         title="JAVELANCE Interactive Grid (Click hexagons to select/deselect)",
@@ -83,8 +61,41 @@ def create_figure(selected_nodes=None):
     return fig
 
 
+def add_selected_nodes_to_patch(patch, selected_nodes):
+    """Add selected node traces to a Patch object."""
+    if not selected_nodes:
+        return
+
+    selected_nodes_array = np.array(sorted(selected_nodes))
+    selected_shape = Shape.from_sets(nodes=selected_nodes, edges=set())
+
+    # Create a minimal temporary figure to get just the selected node traces
+    import plotly.graph_objects as go
+    temp_fig = go.Figure()
+
+    plot_shape(
+        temp_fig,
+        selected_nodes_array,
+        selected_shape.edges,
+        hex_size=HEX_SIZE,
+        node_color="orange",
+        edge_color="orange",
+        alpha=0.8,
+        inset_ratio=0.85,
+        interactive=True,  # Make selected hexagons clickable to allow deselection
+    )
+
+    # Add all traces from the temporary figure to the patch
+    for trace in temp_fig.data:
+        patch.data.append(trace)
+
+
 # Create the Dash app
 app = Dash(__name__)
+
+# Create the base figure once at startup
+BASE_FIGURE = create_base_figure()
+NUM_BASE_TRACES = len(BASE_FIGURE.data)
 
 app.layout = html.Div(
     [
@@ -96,7 +107,7 @@ app.layout = html.Div(
             ]
         ),
         dcc.Graph(
-            id="hex-grid", figure=create_figure(), config={"displayModeBar": True}
+            id="hex-grid", figure=BASE_FIGURE, config={"displayModeBar": True}
         ),
         dcc.Store(
             id="selected-nodes", data=[]
@@ -146,8 +157,20 @@ def handle_click(click_data, selected_nodes_data):
     else:
         logger.debug("No click data")
 
-    # Create updated figure
-    fig = create_figure(selected_nodes)
+    # Use Patch to efficiently update only the selected nodes traces
+    patched_figure = Patch()
+
+    # Remove all traces after the base traces (i.e., remove old selected node traces)
+    # Patch doesn't know current length, so we delete all potential selected traces
+    # Use a large number to ensure we remove all selected node traces
+    for _ in range(1000):  # Arbitrary large number to clear all selected traces
+        try:
+            del patched_figure.data[NUM_BASE_TRACES]
+        except (IndexError, KeyError):
+            break
+
+    # Add new selected node traces
+    add_selected_nodes_to_patch(patched_figure, selected_nodes)
 
     # Convert set back to list for storage
     selected_nodes_list = [list(node) for node in selected_nodes]
@@ -158,7 +181,7 @@ def handle_click(click_data, selected_nodes_data):
     else:
         info = "No hexagons selected"
 
-    return fig, selected_nodes_list, info
+    return patched_figure, selected_nodes_list, info
 
 
 if __name__ == "__main__":
