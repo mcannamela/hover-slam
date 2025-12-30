@@ -8,6 +8,8 @@ from javelance.javelance import JAVELANCE, JAVELANCE_GRID_SHAPE
 from javelance.plotting import plot_shape_hexes, plot_shape
 from javelance.shapes import Shape
 
+HEX_SIZE = 1.0
+
 
 def coords_to_hex(x, y, hex_size=1.0):
     """
@@ -37,7 +39,9 @@ def create_figure(selected_nodes=None):
     logger.debug(f"Selected nodes:{selected_nodes}")
 
     # Use plot_shape_hexes to plot the grid with interactive hexagons
-    fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE, hex_size=1.0, label_hexes=False, interactive=True)
+    fig = plot_shape_hexes(
+        JAVELANCE_GRID_SHAPE, hex_size=HEX_SIZE, label_hexes=False, interactive=True
+    )
 
     # Overlay JAVELANCE using plot_shape
     javelance_nodes = np.array(sorted(JAVELANCE.node_set()))
@@ -47,7 +51,7 @@ def create_figure(selected_nodes=None):
         fig,
         javelance_nodes,
         javelance_edges,
-        hex_size=1.0,
+        hex_size=HEX_SIZE,
         node_color=JAVELANCE.mean_color,
         edge_color=JAVELANCE.mean_color,
         alpha=0.5,
@@ -63,7 +67,7 @@ def create_figure(selected_nodes=None):
             fig,
             selected_nodes_array,
             selected_shape.edges,
-            hex_size=1.0,
+            hex_size=HEX_SIZE,
             node_color="orange",
             edge_color="orange",
             alpha=0.8,
@@ -109,22 +113,28 @@ app.layout = html.Div(
 )
 def handle_click(click_data, selected_nodes_data):
     """Handle clicks on hexagons to select/deselect them."""
-    logger.debug(f"handle_click")
+    logger.debug("handle_click")
     # Convert stored data to set of tuples
     selected_nodes = (
         {tuple(node) for node in selected_nodes_data} if selected_nodes_data else set()
     )
 
     if click_data is not None and "points" in click_data:
-        logger.debug(f"click_data: :{click_data}")
+        logger.debug(f"click_data: {click_data}")
         # Get the clicked point's coordinates
         point = click_data["points"][0]
-        if "x" in point and "y" in point:
+        if "bbox" in point:
+            x = (point["bbox"]["x0"] + point["bbox"]["x1"]) / 2
+            y = (point["bbox"]["y0"] + point["bbox"]["y1"]) / 2
+
             # Convert click coordinates to hex address
-            i, j = coords_to_hex(point["x"], point["y"], hex_size=1.0)
+            i, j = coords_to_hex(x, y, hex_size=HEX_SIZE)
+
+            logger.debug(f"Got avg point ({x},{y})-> address ({i},{j})")
 
             # Validate that the clicked hex is in JAVELANCE_GRID_SHAPE
             if (i, j) in JAVELANCE_GRID_SHAPE.node_set():
+                logger.debug(f"Clicked hex ({i},{j}) is in JAVELANCE_GRID_SHAPE")
                 clicked_node = (i, j)
 
                 # Toggle selection
@@ -132,6 +142,10 @@ def handle_click(click_data, selected_nodes_data):
                     selected_nodes.remove(clicked_node)
                 else:
                     selected_nodes.add(clicked_node)
+            else:
+                logger.debug(f"Clicked hex ({i},{j}) is not in JAVELANCE_GRID_SHAPE")
+    else:
+        logger.debug("No click data or bbox not in click data")
 
     # Create updated figure
     fig = create_figure(selected_nodes)
