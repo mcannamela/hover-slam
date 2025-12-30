@@ -352,6 +352,7 @@ class Shape:
         alpha=0.7,
         inset_ratio=0.7,
         interactive=True,
+        labels=None,
     ):
         """Plot the shape on the given figure"""
         from javelance.plotting import plot_shape
@@ -368,6 +369,7 @@ class Shape:
             alpha,
             inset_ratio,
             interactive,
+            labels,
         )
 
     def jittered_color(self, jitter_amount=20):

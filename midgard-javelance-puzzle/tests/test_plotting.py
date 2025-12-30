@@ -174,5 +174,125 @@ def test_plot_named_colors():
     fig.show()
 
 
+def test_plot_shape_with_labels_dict():
+    """Test plotting a shape with labels provided as a dict."""
+    # Create the grid
+    fig = plot_hex_grid(5, 4)
+
+    # Define a shape with nodes and edges
+    nodes = np.array([
+        [1, 1],
+        [2, 1],
+        [2, 2],
+        [1, 2],
+    ])
+
+    edges = np.array([
+        [[1, 1], [2, 1]],
+        [[2, 1], [2, 2]],
+        [[2, 2], [1, 2]],
+        [[1, 2], [1, 1]],
+    ])
+
+    # Create labels as a dict mapping (i, j) to strings
+    labels = {
+        (1, 1): "A",
+        (2, 1): "B",
+        (2, 2): "C",
+        (1, 2): "D",
+    }
+
+    # Add the shape with labels to the figure
+    plot_shape(fig, nodes, edges, labels=labels)
+    fig.show()
+
+
+def test_plot_shape_with_labels_function():
+    """Test plotting a shape with labels provided as a function."""
+    # Create the grid
+    fig = plot_hex_grid(5, 4)
+
+    # Define a shape with nodes and edges
+    nodes = np.array([
+        [1, 1],
+        [2, 1],
+        [2, 2],
+        [1, 2],
+    ])
+
+    edges = np.array([
+        [[1, 1], [2, 1]],
+        [[2, 1], [2, 2]],
+        [[2, 2], [1, 2]],
+        [[1, 2], [1, 1]],
+    ])
+
+    # Create labels as a function that returns the coordinates
+    def label_func(i, j):
+        return f"{i},{j}"
+
+    # Add the shape with labels to the figure
+    plot_shape(fig, nodes, edges, labels=label_func)
+    fig.show()
+
+
+def test_plot_shape_with_labels_list():
+    """Test plotting a shape with labels provided as a list."""
+    # Create the grid
+    fig = plot_hex_grid(5, 4)
+
+    # Define a shape with nodes and edges
+    nodes = np.array([
+        [1, 1],
+        [2, 1],
+        [2, 2],
+        [1, 2],
+    ])
+
+    edges = np.array([
+        [[1, 1], [2, 1]],
+        [[2, 1], [2, 2]],
+        [[2, 2], [1, 2]],
+        [[1, 2], [1, 1]],
+    ])
+
+    # Create labels as a list parallel to nodes
+    labels = ["1", "2", "3", "4"]
+
+    # Add the shape with labels to the figure
+    plot_shape(fig, nodes, edges, labels=labels)
+    fig.show()
+
+
+def test_plot_shape_with_numeric_labels():
+    """Test plotting a shape with numeric labels."""
+    # Create the grid
+    fig = plot_hex_grid(6, 5)
+
+    # Define a shape with nodes and edges
+    nodes = np.array([
+        [1, 1],
+        [2, 1],
+        [3, 1],
+        [1, 2],
+        [2, 2],
+        [3, 2],
+    ])
+
+    edges = np.array([
+        [[1, 1], [2, 1]],
+        [[2, 1], [3, 1]],
+        [[1, 2], [2, 2]],
+        [[2, 2], [3, 2]],
+    ])
+
+    # Create numeric labels (e.g., costs or weights)
+    labels = [10, 20, 30, 15, 25, 35]
+
+    # Add the shape with labels to the figure
+    plot_shape(fig, nodes, edges, labels=labels, node_color="lightblue")
+    fig.show()
+
+
 if __name__ == "__main__":
-    test_plot_named_colors()
+    test_plot_shape_with_labels_dict()

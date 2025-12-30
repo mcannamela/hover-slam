@@ -230,6 +230,7 @@ def plot_shape(
     alpha=0.7,
     inset_ratio=0.7,
     interactive=False,
+    labels=None,
 ):
     """
     Plot a shape on the hexagonal grid.
@@ -245,6 +246,11 @@ def plot_shape(
     - alpha: transparency for nodes and edges (0-1)
     - inset_ratio: ratio of node hexagon size to grid hexagon size
     - interactive: if True, make hexagons clickable with customdata
+    - labels: optional labels for hexagons. Can be:
+        - None: no labels (default)
+        - dict: mapping (i, j) tuples to label strings
+        - callable: function taking (i, j) and returning label string
+        - list/array: parallel to nodes, one label per node
     """
     # Vertices of a pointy-top hexagon are at angles: 30°, 90°, 150°, 210°, 270°, 330°
     angles = np.array([30, 90, 150, 210, 270, 330]) * np.pi / 180
@@ -353,6 +359,38 @@ def plot_shape(
                 hoverinfo="skip",
             )
         )
+
+    # Add labels to hexagon centers if requested
+    if labels is not None and len(nodes) > 0:
+        for idx, node in enumerate(nodes):
+            i, j = node[0], node[1]
+            center = _hex_center(i, j, hex_size)
+            cx, cy = center
+
+            # Determine the label text for this node
+            label_text = None
+            if callable(labels):
+                # labels is a function: call it with (i, j)
+                label_text = labels(i, j)
+            elif isinstance(labels, dict):
+                # labels is a dict: look up (i, j)
+                label_text = labels.get((i, j))
+            elif hasattr(labels, "__getitem__"):
+                # labels is a list/array: use index
+                if idx < len(labels):
+                    label_text = labels[idx]
+
+            # Add annotation if we have a label
+            if label_text is not None:
+                fig.add_annotation(
+                    x=cx,
+                    y=cy,
+                    text=str(label_text),
+                    showarrow=False,
+                    font=dict(size=10, color="black"),
+                    xanchor="center",
+                    yanchor="middle",
+                )
 
     return fig
 
