@@ -112,6 +112,9 @@ app.layout = html.Div(
         dcc.Store(
             id="selected-nodes", data=[]
         ),  # Store selected nodes as list of [i, j]
+        dcc.Store(
+            id="num-selected-traces", data=0
+        ),  # Track number of traces added for selected nodes
     ]
 )
 
@@ -120,10 +123,12 @@ app.layout = html.Div(
     Output("hex-grid", "figure"),
     Output("selected-nodes", "data"),
     Output("selection-info", "children"),
+    Output("num-selected-traces", "data"),
     Input("hex-grid", "clickData"),
     State("selected-nodes", "data"),
+    State("num-selected-traces", "data"),
 )
-def handle_click(click_data, selected_nodes_data):
+def handle_click(click_data, selected_nodes_data, num_selected_traces):
     """Handle clicks on hexagons to select/deselect them."""
     logger.debug("handle_click")
     # Convert stored data to set of tuples
@@ -160,17 +165,25 @@ def handle_click(click_data, selected_nodes_data):
     # Use Patch to efficiently update only the selected nodes traces
     patched_figure = Patch()
 
-    # Remove all traces after the base traces (i.e., remove old selected node traces)
-    # Patch doesn't know current length, so we delete all potential selected traces
-    # Use a large number to ensure we remove all selected node traces
-    for _ in range(1000):  # Arbitrary large number to clear all selected traces
+    # Remove exactly the number of selected node traces from the previous selection
+    # Each selected node adds exactly 1 trace (filled hexagon)
+    if num_selected_traces is None:
+        num_selected_traces = 0
+
+    logger.debug(f"Removing {num_selected_traces} previous selected node traces")
+    for _ in range(num_selected_traces):
         try:
             del patched_figure.data[NUM_BASE_TRACES]
         except (IndexError, KeyError):
+            logger.warning(f"Failed to delete trace at index {NUM_BASE_TRACES}")
             break
 
     # Add new selected node traces
     add_selected_nodes_to_patch(patched_figure, selected_nodes)
+
+    # Each selected node creates exactly 1 trace
+    new_num_selected_traces = len(selected_nodes)
+    logger.debug(f"Added {new_num_selected_traces} new selected node traces")
 
     # Convert set back to list for storage
     selected_nodes_list = [list(node) for node in selected_nodes]
@@ -181,7 +194,7 @@ def handle_click(click_data, selected_nodes_data):
     else:
         info = "No hexagons selected"
 
-    return patched_figure, selected_nodes_list, info
+    return patched_figure, selected_nodes_list, info, new_num_selected_traces
 
 
 if __name__ == "__main__":
