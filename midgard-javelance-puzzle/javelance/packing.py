@@ -20,14 +20,10 @@ PrioritizedCandidate = tuple[
 HeuristicFn = Callable[
     [
         "PackingProblem",  # problem
-        str,  # name
-        Shape,  # placement
-        float,  # cost
-        int,  # num_nodes
         set[Shape.Node],  # occupied_nodes
         list[Candidate],  # all_candidates
     ],
-    float,  # priority value (lower is better)
+    np.ndarray,  # array of priority values (lower is better), aligned with all_candidates
 ]
 
 SelectorFn = Callable[
@@ -171,53 +167,40 @@ class PackingSolution:
 
 def heuristic_cost_per_node(
     problem: PackingProblem,
-    name: str,
-    placement: Shape,
-    cost: float,
-    num_nodes: int,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
-) -> float:
+) -> np.ndarray:
     """Prioritize pieces with lowest cost per node."""
-    return cost / num_nodes
+    priorities = np.array([cost / num_nodes for _, _, cost, num_nodes in all_candidates])
+    return priorities
 
 
 def heuristic_largest_first(
     problem: PackingProblem,
-    name: str,
-    placement: Shape,
-    cost: float,
-    num_nodes: int,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
-) -> float:
+) -> np.ndarray:
     """Prioritize largest pieces first."""
-    return -num_nodes
+    priorities = np.array([-num_nodes for _, _, _, num_nodes in all_candidates])
+    return priorities
 
 
 def heuristic_cheapest_first(
     problem: PackingProblem,
-    name: str,
-    placement: Shape,
-    cost: float,
-    num_nodes: int,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
-) -> float:
+) -> np.ndarray:
     """Prioritize cheapest pieces first."""
-    return cost
+    priorities = np.array([cost for _, _, cost, _ in all_candidates])
+    return priorities
 
 
 def heuristic_expected_coverage_cost(
     problem: PackingProblem,
-    name: str,
-    placement: Shape,
-    cost: float,
-    num_nodes: int,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
     uncovered_node_cost: float = 14.3,
-) -> float:
+) -> np.ndarray:
     """
     Prioritize low-cost placements covering nodes with high expected coverage cost.
 
@@ -227,7 +210,7 @@ def heuristic_expected_coverage_cost(
     """
     target_nodes = problem.target.node_set()
 
-    # Calculate node expected coverage cost
+    # Calculate node expected coverage cost (only once for all candidates!)
     node_coverage_cost = {}
     for node in target_nodes:
         if node in occupied_nodes:
@@ -249,16 +232,21 @@ def heuristic_expected_coverage_cost(
             total_cost / total_coverage if total_coverage > 0 else 0
         )
 
-    # Sum of node expected coverage costs for all nodes in this placement
-    total_node_value = sum(
-        node_coverage_cost.get(node, 0) for node in placement.node_set()
-    )
+    # Compute priorities for all candidates
+    priorities = np.zeros(len(all_candidates))
+    for idx, (name, placement, cost, num_nodes) in enumerate(all_candidates):
+        # Sum of node expected coverage costs for all nodes in this placement
+        total_node_value = sum(
+            node_coverage_cost.get(node, 0) for node in placement.node_set()
+        )
 
-    # Prioritize low-cost placements covering high-value nodes
-    if total_node_value > 0:
-        return cost / total_node_value
-    else:
-        return float("inf")  # No valuable nodes covered
+        # Prioritize low-cost placements covering high-value nodes
+        if total_node_value > 0:
+            priorities[idx] = cost / total_node_value
+        else:
+            priorities[idx] = float("inf")  # No valuable nodes covered
+
+    return priorities
 
 
 # ============================================================================
@@ -352,23 +340,18 @@ def greedy_pack(
 
     if not recompute_heuristic:
         # Compute priorities once upfront for efficiency
-        prioritized_all: list[PrioritizedCandidate] = []
         with log_elapsed("compute_priorities_once"):
             logger.info(f"There are {len(all_candidates)} candidate placements.")
-            for name, placement, cost, num_nodes in all_candidates:
-                priority = heuristic_fn(
-                    problem,
-                    name,
-                    placement,
-                    cost,
-                    num_nodes,
-                    occupied_nodes,
-                    all_candidates,
-                )
-                prioritized_all.append((priority, name, placement, cost, num_nodes))
+            priorities = heuristic_fn(problem, occupied_nodes, all_candidates)
 
-            # Sort by priority once
-            prioritized_all.sort(key=lambda x: x[0])
+        # Zip priorities with candidates
+        prioritized_all: list[PrioritizedCandidate] = [
+            (priority, name, placement, cost, num_nodes)
+            for priority, (name, placement, cost, num_nodes) in zip(priorities, all_candidates)
+        ]
+
+        # Sort by priority once
+        prioritized_all.sort(key=lambda x: x[0])
 
         # Greedy selection from pre-computed priorities
         with log_elapsed("greedy_select_once"):
@@ -381,32 +364,25 @@ def greedy_pack(
         max_iter = len(all_candidates)
         logger.info(f"There are {max_iter} candidate placements.")
         for _ in tqdm(range(max_iter)):
-            # Find all currently valid candidates
-            valid_candidates: list[Candidate] = [
-                (name, placement, cost, num_nodes)
-                for name, placement, cost, num_nodes in all_candidates
+            # Find all currently valid candidates and their indices
+            valid_indices = [
+                idx
+                for idx, (name, placement, cost, num_nodes) in enumerate(all_candidates)
                 if problem.is_valid_placement(placement, occupied_nodes)
             ]
 
-            if not valid_candidates:
+            if not valid_indices:
                 # No more valid placements
                 break
 
-            # Compute priorities for valid candidates
-            prioritized_candidates: list[PrioritizedCandidate] = []
-            for name, placement, cost, num_nodes in valid_candidates:
-                priority = heuristic_fn(
-                    problem,
-                    name,
-                    placement,
-                    cost,
-                    num_nodes,
-                    occupied_nodes,
-                    all_candidates,
-                )
-                prioritized_candidates.append(
-                    (priority, name, placement, cost, num_nodes)
-                )
+            # Compute priorities for all candidates (heuristic may need full context)
+            priorities = heuristic_fn(problem, occupied_nodes, all_candidates)
+
+            # Extract valid prioritized candidates
+            prioritized_candidates: list[PrioritizedCandidate] = [
+                (priorities[idx], *all_candidates[idx])
+                for idx in valid_indices
+            ]
 
             # Select a placement using the selector function
             selected = selector_fn(prioritized_candidates)

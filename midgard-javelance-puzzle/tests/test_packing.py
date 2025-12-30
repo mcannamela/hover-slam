@@ -309,34 +309,19 @@ def test_heuristic_expected_coverage_cost_performance():
     print(f"Target size: {len(target.node_set())} nodes")
     print(f"Total candidates: {len(all_candidates)}")
 
-    # Time a single heuristic call
+    # Time a single heuristic call (now computes all priorities at once)
     occupied_nodes = set()
-    test_name, test_placement, test_cost, test_num_nodes = all_candidates[0]
 
     start = time.time()
-    priority = heuristic_expected_coverage_cost(
-        problem, test_name, test_placement, test_cost, test_num_nodes, occupied_nodes, all_candidates
-    )
+    priorities = heuristic_expected_coverage_cost(problem, occupied_nodes, all_candidates)
     elapsed = time.time() - start
 
-    print(f"Single heuristic call: {elapsed:.4f}s")
-    print(f"Priority value: {priority:.6f}")
+    print(f"Single heuristic call (all {len(all_candidates)} candidates): {elapsed:.4f}s")
+    print(f"First priority value: {priorities[0]:.6f}")
+    print(f"Time per candidate: {elapsed / len(all_candidates) * 1000:.2f}ms")
 
-    # Estimate total time for all candidates
-    estimated_total = elapsed * len(all_candidates)
-    print(f"Estimated time for all candidates: {estimated_total:.2f}s")
-
-    # Count node set operations
-    node_set_calls = 0
-    for _ in all_candidates:
-        for node in target.node_set():
-            for cand_name, cand_placement, cand_cost, cand_num_nodes in all_candidates:
-                node_set_calls += 1  # Each check calls node_set()
-
-    print(f"Approximate node_set() calls per heuristic: {node_set_calls // len(all_candidates)}")
-
-    # The heuristic should complete in reasonable time
-    assert elapsed < 1.0, f"Heuristic too slow: {elapsed:.4f}s for single call"
+    # The heuristic should compute all priorities efficiently
+    assert elapsed < 1.0, f"Heuristic too slow: {elapsed:.4f}s for all {len(all_candidates)} candidates"
 
 
 def test_heuristic_expected_coverage_cost_javelance_size():
@@ -374,36 +359,27 @@ def test_heuristic_expected_coverage_cost_javelance_size():
     print(f"Candidate generation: {elapsed_gen:.2f}s")
     print(f"Total candidates: {len(all_candidates)}")
 
-    # Test a single heuristic call
+    # Test a single heuristic call (now computes all priorities at once!)
     occupied_nodes = set()
-    test_name, test_placement, test_cost, test_num_nodes = all_candidates[0]
 
     start = time.time()
-    priority = heuristic_expected_coverage_cost(
-        problem, test_name, test_placement, test_cost, test_num_nodes, occupied_nodes, all_candidates
-    )
+    priorities = heuristic_expected_coverage_cost(problem, occupied_nodes, all_candidates)
     elapsed = time.time() - start
 
-    print(f"Single heuristic call: {elapsed:.4f}s")
-    print(f"Priority value: {priority:.6f}")
+    print(f"Single heuristic call (all {len(all_candidates)} candidates): {elapsed:.4f}s")
+    print(f"First priority value: {priorities[0]:.6f}")
+    print(f"Time per candidate: {elapsed / len(all_candidates) * 1000:.2f}ms")
 
     # Calculate complexity
     target_size = len(JAVELANCE.node_set())
     num_candidates = len(all_candidates)
 
-    # The heuristic does: for each target node, check all candidates
-    # Each check calls node_set() on the candidate placement
+    # The heuristic does: for each target node, check all candidates ONCE
+    # New complexity: O(target_nodes * candidates) instead of O(target_nodes * candidates^2)
     node_set_calls = target_size * num_candidates
-
-    print(f"Node set calls per heuristic: {node_set_calls:,} ({target_size} * {num_candidates})")
-
-    # Estimate total time to compute all priorities
-    estimated_total = elapsed * num_candidates
-    print(f"Estimated time for all {num_candidates} candidates: {estimated_total:.2f}s ({estimated_total/60:.1f} min)")
-
-    # This is the complexity problem: O(target_nodes * candidates^2)
-    total_complexity = target_size * num_candidates * num_candidates
-    print(f"Total complexity: O({total_complexity:,}) = {target_size} * {num_candidates}^2")
+    print(f"Node set calls total: {node_set_calls:,} ({target_size} * {num_candidates})")
+    print(f"New complexity: O({node_set_calls:,}) = {target_size} * {num_candidates}")
+    print(f"Previous complexity would have been: O({target_size * num_candidates * num_candidates:,})")
 
 
 def test_javelance_packing_visualization():
