@@ -1,11 +1,39 @@
 """Module for solving shape packing problems on hexagonal grids."""
 
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Self
+from typing import Callable, Self
 
 import numpy as np
+from loguru import logger
+from tqdm import tqdm
 
 from javelance.shapes import Shape
+
+# Type aliases for cleaner signatures
+Candidate = tuple[str, Shape, float, int]  # (name, placement, cost, num_nodes)
+PrioritizedCandidate = tuple[
+    float, str, Shape, float, int
+]  # (priority, name, placement, cost, num_nodes)
+
+HeuristicFn = Callable[
+    [
+        "PackingProblem",  # problem
+        str,  # name
+        Shape,  # placement
+        float,  # cost
+        int,  # num_nodes
+        set[Shape.Node],  # occupied_nodes
+        list[Candidate],  # all_candidates
+    ],
+    float,  # priority value (lower is better)
+]
+
+SelectorFn = Callable[
+    [list[PrioritizedCandidate]],  # valid_prioritized_candidates
+    PrioritizedCandidate | None,  # chosen candidate or None to stop
+]
 
 
 @dataclass
@@ -136,85 +164,257 @@ class PackingSolution:
         )
 
 
+# ============================================================================
+# Heuristic Functions
+# ============================================================================
+
+
+def heuristic_cost_per_node(
+    problem: PackingProblem,
+    name: str,
+    placement: Shape,
+    cost: float,
+    num_nodes: int,
+    occupied_nodes: set[Shape.Node],
+    all_candidates: list[Candidate],
+) -> float:
+    """Prioritize pieces with lowest cost per node."""
+    return cost / num_nodes
+
+
+def heuristic_largest_first(
+    problem: PackingProblem,
+    name: str,
+    placement: Shape,
+    cost: float,
+    num_nodes: int,
+    occupied_nodes: set[Shape.Node],
+    all_candidates: list[Candidate],
+) -> float:
+    """Prioritize largest pieces first."""
+    return -num_nodes
+
+
+def heuristic_cheapest_first(
+    problem: PackingProblem,
+    name: str,
+    placement: Shape,
+    cost: float,
+    num_nodes: int,
+    occupied_nodes: set[Shape.Node],
+    all_candidates: list[Candidate],
+) -> float:
+    """Prioritize cheapest pieces first."""
+    return cost
+
+
+def heuristic_expected_coverage_cost(
+    problem: PackingProblem,
+    name: str,
+    placement: Shape,
+    cost: float,
+    num_nodes: int,
+    occupied_nodes: set[Shape.Node],
+    all_candidates: list[Candidate],
+    uncovered_node_cost: float = 14.3,
+) -> float:
+    """
+    Prioritize low-cost placements covering nodes with high expected coverage cost.
+
+    For each node, calculates the expected cost to cover it based on all available
+    placements that could cover it. Then prioritizes placements that efficiently
+    cover high-cost nodes.
+    """
+    target_nodes = problem.target.node_set()
+
+    # Calculate node expected coverage cost
+    node_coverage_cost = {}
+    for node in target_nodes:
+        if node in occupied_nodes:
+            # Already covered, skip
+            continue
+
+        # An uncovered node has some base cost
+        total_cost = uncovered_node_cost
+        total_coverage = 1.0
+
+        # Find all placements that cover this node
+        for cand_name, cand_placement, cand_cost, cand_num_nodes in all_candidates:
+            if node in cand_placement.node_set():
+                total_cost += cand_cost
+                total_coverage += cand_num_nodes
+
+        # Calculate expected coverage cost for this node
+        node_coverage_cost[node] = (
+            total_cost / total_coverage if total_coverage > 0 else 0
+        )
+
+    # Sum of node expected coverage costs for all nodes in this placement
+    total_node_value = sum(
+        node_coverage_cost.get(node, 0) for node in placement.node_set()
+    )
+
+    # Prioritize low-cost placements covering high-value nodes
+    if total_node_value > 0:
+        return cost / total_node_value
+    else:
+        return float("inf")  # No valuable nodes covered
+
+
+# ============================================================================
+# Selector Functions
+# ============================================================================
+
+
+def selector_min_priority(
+    valid_prioritized_candidates: list[PrioritizedCandidate],
+) -> PrioritizedCandidate | None:
+    """Select the candidate with the lowest priority value (greedy selection)."""
+    if not valid_prioritized_candidates:
+        return None
+    return min(valid_prioritized_candidates, key=lambda x: x[0])
+
+
+# ============================================================================
+# Strategy Registry
+# ============================================================================
+
+HEURISTIC_REGISTRY: dict[str, HeuristicFn] = {
+    "cost_per_node": heuristic_cost_per_node,
+    "largest_first": heuristic_largest_first,
+    "cheapest_first": heuristic_cheapest_first,
+    "expected_coverage_cost": heuristic_expected_coverage_cost,
+}
+
+
+@contextmanager
+def log_elapsed(label="block"):
+    start = time.time()
+    yield
+    end = time.time()
+    logger.info(f"Elapsed time for {label}: {(end - start):.2e}s")
+
+
 def greedy_pack(
-    problem: PackingProblem, strategy: str = "cost_per_node"
+    problem: PackingProblem,
+    strategy: str | None = None,
+    heuristic_fn: HeuristicFn | None = None,
+    selector_fn: SelectorFn | None = None,
+    recompute_heuristic: bool = False,
 ) -> PackingSolution:
     """
-    Pack shapes using a greedy algorithm.
+    Pack shapes using a greedy algorithm with customizable heuristics.
 
     Args:
         problem: The packing problem to solve
-        strategy: Greedy strategy to use:
-            - "cost_per_node": Prioritize pieces with lowest cost per node
-            - "largest_first": Prioritize largest pieces first
-            - "cheapest_first": Prioritize cheapest pieces first
-            - "expected_coverage_cost": Prioritize low-cost placements covering
-              nodes with high expected coverage cost
+        strategy: String name of a registered strategy (e.g., "cost_per_node",
+            "expected_coverage_cost"). If provided, overrides heuristic_fn.
+        heuristic_fn: Custom heuristic function to compute placement priorities.
+            If not provided and no strategy given, defaults to "cost_per_node".
+        selector_fn: Function to select which placement to use from valid candidates.
+            Defaults to selecting the minimum priority placement.
+        recompute_heuristic: If True, recompute heuristic values after each placement.
+            If False (default), compute all priorities once upfront. This is much more
+            efficient but less adaptive to changing board states. Only use True for
+            heuristics that need to adapt to occupied nodes.
 
     Returns:
         A PackingSolution with the greedy packing result
     """
-    occupied_nodes = set()
-    placements = []
+    # Resolve the heuristic function
+    if strategy is not None:
+        if strategy not in HEURISTIC_REGISTRY:
+            raise ValueError(
+                f"Unknown strategy: {strategy}. "
+                f"Available: {list(HEURISTIC_REGISTRY.keys())}"
+            )
+        heuristic_fn = HEURISTIC_REGISTRY[strategy]
+    elif heuristic_fn is None:
+        # Default to cost_per_node
+        heuristic_fn = heuristic_cost_per_node
+
+    # Default selector
+    if selector_fn is None:
+        selector_fn = selector_min_priority
+
+    occupied_nodes: set[Shape.Node] = set()
+    placements: list[tuple[str, Shape, float]] = []
     target_nodes = problem.target.node_set()
 
     # Generate all possible placements for all pieces
-    all_candidates = []
-    for name, shape, cost in problem.pieces:
-        piece_placements = problem.generate_all_placements(shape)
-        for placement in piece_placements:
-            num_nodes = len(placement.node_set())
-            all_candidates.append((name, placement, cost, num_nodes))
+    all_candidates: list[Candidate] = []
+    with log_elapsed("generate_all_placements"):
+        for name, shape, cost in problem.pieces:
+            piece_placements = problem.generate_all_placements(shape)
+            for placement in piece_placements:
+                num_nodes = len(placement.node_set())
+                all_candidates.append((name, placement, cost, num_nodes))
 
-    # Calculate node expected coverage cost if using that strategy
-    if strategy == "expected_coverage_cost":
-        node_coverage_cost = {}
-        for node in target_nodes:
-            total_cost = 14.3
-            total_coverage = 1
-            # Find all placements that cover this node
+    if not recompute_heuristic:
+        # Compute priorities once upfront for efficiency
+        prioritized_all: list[PrioritizedCandidate] = []
+        with log_elapsed("compute_priorities_once"):
             for name, placement, cost, num_nodes in all_candidates:
-                if node in placement.node_set():
-                    total_cost += cost
-                    total_coverage += num_nodes
+                priority = heuristic_fn(
+                    problem,
+                    name,
+                    placement,
+                    cost,
+                    num_nodes,
+                    occupied_nodes,
+                    all_candidates,
+                )
+                prioritized_all.append((priority, name, placement, cost, num_nodes))
 
-            # Calculate expected coverage cost for this node
-            if total_coverage > 0:
-                node_coverage_cost[node] = total_cost / total_coverage
-            else:
-                node_coverage_cost[node] = 0
+            # Sort by priority once
+            prioritized_all.sort(key=lambda x: x[0])
 
-    # Calculate priority for each candidate
-    prioritized_candidates = []
-    for name, placement, cost, num_nodes in all_candidates:
-        if strategy == "cost_per_node":
-            priority = cost / num_nodes
-        elif strategy == "largest_first":
-            priority = -num_nodes
-        elif strategy == "cheapest_first":
-            priority = cost
-        elif strategy == "expected_coverage_cost":
-            # Sum of node expected coverage costs for all nodes in this placement
-            total_node_value = sum(
-                node_coverage_cost.get(node, 0) for node in placement.node_set()
-            )
-            # Prioritize low-cost placements covering high-value nodes
-            # Lower priority value = better
-            if total_node_value > 0:
-                priority = cost / total_node_value
-            else:
-                priority = float("inf")  # No valuable nodes covered
-        else:
-            raise ValueError(f"Unknown strategy: {strategy}")
+        # Greedy selection from pre-computed priorities
+        with log_elapsed("greedy_select_once"):
+            for priority, name, placement, cost, num_nodes in prioritized_all:
+                if problem.is_valid_placement(placement, occupied_nodes):
+                    placements.append((name, placement, cost))
+                    occupied_nodes |= placement.node_set()
+    else:
+        # Recompute heuristic after each placement (adaptive but slower)
+        max_iter = len(all_candidates)
+        for _ in tqdm(range(max_iter)):
+            # Find all currently valid candidates
+            valid_candidates: list[Candidate] = [
+                (name, placement, cost, num_nodes)
+                for name, placement, cost, num_nodes in all_candidates
+                if problem.is_valid_placement(placement, occupied_nodes)
+            ]
 
-        prioritized_candidates.append((priority, name, placement, cost, num_nodes))
+            if not valid_candidates:
+                # No more valid placements
+                break
 
-    # Sort by priority (lower is better)
-    prioritized_candidates.sort(key=lambda x: x[0])
+            # Compute priorities for valid candidates
+            prioritized_candidates: list[PrioritizedCandidate] = []
+            for name, placement, cost, num_nodes in valid_candidates:
+                priority = heuristic_fn(
+                    problem,
+                    name,
+                    placement,
+                    cost,
+                    num_nodes,
+                    occupied_nodes,
+                    all_candidates,
+                )
+                prioritized_candidates.append(
+                    (priority, name, placement, cost, num_nodes)
+                )
 
-    # Greedily place shapes
-    for priority, name, placement, cost, num_nodes in prioritized_candidates:
-        if problem.is_valid_placement(placement, occupied_nodes):
+            # Select a placement using the selector function
+            selected = selector_fn(prioritized_candidates)
+            if selected is None:
+                # Selector chose to stop
+                break
+
+            priority, name, placement, cost, num_nodes = selected
+
+            # Place the selected piece
             placements.append((name, placement, cost))
             occupied_nodes |= placement.node_set()
 
