@@ -61,10 +61,20 @@ def create_base_figure():
     return fig
 
 
-def add_selected_nodes_to_patch(patch, selected_nodes):
-    """Add selected node traces to a Patch object."""
+def add_selected_nodes_to_patch(patch, selected_nodes, start_index):
+    """
+    Add selected node traces to a Patch object.
+
+    Args:
+        patch: Patch object to add traces to
+        selected_nodes: Set of selected node tuples (i, j)
+        start_index: Index where the first trace will be added
+
+    Returns:
+        List of indices where traces were added
+    """
     if not selected_nodes:
-        return
+        return []
 
     selected_nodes_array = np.array(sorted(selected_nodes))
     selected_shape = Shape.from_sets(nodes=selected_nodes, edges=set())
@@ -85,9 +95,13 @@ def add_selected_nodes_to_patch(patch, selected_nodes):
         interactive=True,  # Make selected hexagons clickable to allow deselection
     )
 
-    # Add all traces from the temporary figure to the patch
-    for trace in temp_fig.data:
+    # Add all traces from the temporary figure to the patch and track indices
+    added_indices = []
+    for i, trace in enumerate(temp_fig.data):
         patch.data.append(trace)
+        added_indices.append(start_index + i)
+
+    return added_indices
 
 
 # Create the Dash app
@@ -113,8 +127,8 @@ app.layout = html.Div(
             id="selected-nodes", data=[]
         ),  # Store selected nodes as list of [i, j]
         dcc.Store(
-            id="num-selected-traces", data=0
-        ),  # Track number of traces added for selected nodes
+            id="selected-trace-indices", data=[]
+        ),  # Track indices of traces added for selected nodes
     ]
 )
 
@@ -123,12 +137,12 @@ app.layout = html.Div(
     Output("hex-grid", "figure"),
     Output("selected-nodes", "data"),
     Output("selection-info", "children"),
-    Output("num-selected-traces", "data"),
+    Output("selected-trace-indices", "data"),
     Input("hex-grid", "clickData"),
     State("selected-nodes", "data"),
-    State("num-selected-traces", "data"),
+    State("selected-trace-indices", "data"),
 )
-def handle_click(click_data, selected_nodes_data, num_selected_traces):
+def handle_click(click_data, selected_nodes_data, selected_trace_indices):
     """Handle clicks on hexagons to select/deselect them."""
     logger.debug("handle_click")
     # Convert stored data to set of tuples
@@ -165,25 +179,22 @@ def handle_click(click_data, selected_nodes_data, num_selected_traces):
     # Use Patch to efficiently update only the selected nodes traces
     patched_figure = Patch()
 
-    # Remove exactly the number of selected node traces from the previous selection
-    # Each selected node adds exactly 1 trace (filled hexagon)
-    if num_selected_traces is None:
-        num_selected_traces = 0
+    # Remove traces at the exact indices from the previous selection
+    # Delete in reverse order (largest index first) to avoid index shifting
+    if selected_trace_indices is None:
+        selected_trace_indices = []
 
-    logger.debug(f"Removing {num_selected_traces} previous selected node traces")
-    for _ in range(num_selected_traces):
+    logger.debug(f"Removing {len(selected_trace_indices)} previous selected node traces at indices: {selected_trace_indices}")
+    for idx in sorted(selected_trace_indices, reverse=True):
         try:
-            del patched_figure.data[NUM_BASE_TRACES]
+            del patched_figure.data[idx]
         except (IndexError, KeyError):
-            logger.warning(f"Failed to delete trace at index {NUM_BASE_TRACES}")
-            break
+            logger.warning(f"Failed to delete trace at index {idx}")
 
-    # Add new selected node traces
-    add_selected_nodes_to_patch(patched_figure, selected_nodes)
-
-    # Each selected node creates exactly 1 trace
-    new_num_selected_traces = len(selected_nodes)
-    logger.debug(f"Added {new_num_selected_traces} new selected node traces")
+    # Add new selected node traces starting at NUM_BASE_TRACES
+    # (since we've deleted all the old selected traces, new ones start right after base)
+    new_trace_indices = add_selected_nodes_to_patch(patched_figure, selected_nodes, NUM_BASE_TRACES)
+    logger.debug(f"Added {len(new_trace_indices)} new selected node traces at indices: {new_trace_indices}")
 
     # Convert set back to list for storage
     selected_nodes_list = [list(node) for node in selected_nodes]
@@ -194,7 +205,7 @@ def handle_click(click_data, selected_nodes_data, num_selected_traces):
     else:
         info = "No hexagons selected"
 
-    return patched_figure, selected_nodes_list, info, new_num_selected_traces
+    return patched_figure, selected_nodes_list, info, new_trace_indices
 
 
 if __name__ == "__main__":
