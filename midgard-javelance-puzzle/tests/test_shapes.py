@@ -660,7 +660,7 @@ def test_plot_gizmos_rotations():
         max_height + 1
     ) + 2
 
-    fig = plot_hex_grid(grid_width, grid_height)
+    fig = plot_shape_hexes(Shape.vertical_box(grid_width, grid_height))
 
     for shape_idx, shape in enumerate(GIZMOS):
         unique_rots = shape.unique_originated_rotations()
@@ -722,7 +722,7 @@ def test_plot_sprockets_rotations():
         max_height + 1
     ) + 2
 
-    fig = plot_hex_grid(grid_width, grid_height)
+    fig = plot_shape_hexes(Shape.vertical_box(grid_width, grid_height))
 
     for shape_idx, shape in enumerate(SPROCKETS):
         unique_rots = shape.unique_originated_rotations()
