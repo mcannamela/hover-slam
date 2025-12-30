@@ -146,6 +146,8 @@ def greedy_pack(problem: PackingProblem, strategy: str = "cost_per_node") -> Pac
             - "cost_per_node": Prioritize pieces with lowest cost per node
             - "largest_first": Prioritize largest pieces first
             - "cheapest_first": Prioritize cheapest pieces first
+            - "expected_coverage_cost": Prioritize low-cost placements covering
+              nodes with high expected coverage cost
 
     Returns:
         A PackingSolution with the greedy packing result
@@ -160,22 +162,56 @@ def greedy_pack(problem: PackingProblem, strategy: str = "cost_per_node") -> Pac
         piece_placements = problem.generate_all_placements(shape)
         for placement in piece_placements:
             num_nodes = len(placement.node_set())
-            if strategy == "cost_per_node":
-                priority = cost / num_nodes
-            elif strategy == "largest_first":
-                priority = -num_nodes
-            elif strategy == "cheapest_first":
-                priority = cost
-            else:
-                raise ValueError(f"Unknown strategy: {strategy}")
+            all_candidates.append((name, placement, cost, num_nodes))
 
-            all_candidates.append((priority, name, placement, cost, num_nodes))
+    # Calculate node expected coverage cost if using that strategy
+    if strategy == "expected_coverage_cost":
+        node_coverage_cost = {}
+        for node in target_nodes:
+            total_cost = 0
+            total_coverage = 0
+            # Find all placements that cover this node
+            for name, placement, cost, num_nodes in all_candidates:
+                if node in placement.node_set():
+                    total_cost += cost
+                    total_coverage += num_nodes
+
+            # Calculate expected coverage cost for this node
+            if total_coverage > 0:
+                node_coverage_cost[node] = total_cost / total_coverage
+            else:
+                node_coverage_cost[node] = 0
+
+    # Calculate priority for each candidate
+    prioritized_candidates = []
+    for name, placement, cost, num_nodes in all_candidates:
+        if strategy == "cost_per_node":
+            priority = cost / num_nodes
+        elif strategy == "largest_first":
+            priority = -num_nodes
+        elif strategy == "cheapest_first":
+            priority = cost
+        elif strategy == "expected_coverage_cost":
+            # Sum of node expected coverage costs for all nodes in this placement
+            total_node_value = sum(
+                node_coverage_cost.get(node, 0) for node in placement.node_set()
+            )
+            # Prioritize low-cost placements covering high-value nodes
+            # Lower priority value = better
+            if total_node_value > 0:
+                priority = cost / total_node_value
+            else:
+                priority = float('inf')  # No valuable nodes covered
+        else:
+            raise ValueError(f"Unknown strategy: {strategy}")
+
+        prioritized_candidates.append((priority, name, placement, cost, num_nodes))
 
     # Sort by priority (lower is better)
-    all_candidates.sort(key=lambda x: x[0])
+    prioritized_candidates.sort(key=lambda x: x[0])
 
     # Greedily place shapes
-    for priority, name, placement, cost, num_nodes in all_candidates:
+    for priority, name, placement, cost, num_nodes in prioritized_candidates:
         if problem.is_valid_placement(placement, occupied_nodes):
             placements.append((name, placement, cost))
             occupied_nodes |= placement.node_set()
