@@ -8,13 +8,14 @@ from javelance.shapes import Shape
 pio.renderers.default = "browser"
 
 
-def plot_shape_hexes(shape, hex_size=1.0):
+def plot_shape_hexes(shape, hex_size=1.0, label_hexes=True):
     """
     Plot hexagons for all nodes in a shape, with interior and boundary edges.
 
     Parameters:
     - shape: Shape object containing nodes to plot
     - hex_size: circumradius of each hexagon (distance from center to vertex)
+    - label_hexes: if True, label every 5th hex with its (i, j) coordinates
 
     Returns:
     - Plotly Figure object
@@ -63,6 +64,25 @@ def plot_shape_hexes(shape, hex_size=1.0):
             )
         )
 
+    # Add labels to every 5th hex
+    if label_hexes:
+        for node in nodes:
+            i, j = node
+            # Label every 5th hex
+            if (i + j) % 5 == 0:
+                center = i * i_offset + j * j_offset
+                cx, cy = center
+
+                fig.add_annotation(
+                    x=cx,
+                    y=cy,
+                    text=f"{i}, {j}",
+                    showarrow=False,
+                    font=dict(size=10, color="gray"),
+                    xanchor="center",
+                    yanchor="middle",
+                )
+
     # Calculate bounds for aspect ratio
     if len(nodes) > 0:
         min_addr, max_addr = shape.bounding_addresses()
@@ -96,7 +116,7 @@ def plot_shape_hexes(shape, hex_size=1.0):
     return fig
 
 
-def plot_hex_grid(width: int, height: int, hex_size=1.0, exclude=None):
+def plot_hex_grid(width: int, height: int, hex_size=1.0, exclude=None, label_hexes=True):
     """
     Plot a hexagonal grid with pointy-top orientation.
 
@@ -105,6 +125,7 @@ def plot_hex_grid(width: int, height: int, hex_size=1.0, exclude=None):
     - J: number of hexagons in the j direction (60° counterclockwise from x-axis)
     - hex_size: circumradius of each hexagon (distance from center to vertex)
     - exclude: nx2 array of (i, j) pairs to exclude from plotting (optional)
+    - label_hexes: if True, label every 5th hex with its (i, j) coordinates
 
     The hexagons are indexed by (i, j) where:
     - i direction is aligned with the x-axis
@@ -121,7 +142,7 @@ def plot_hex_grid(width: int, height: int, hex_size=1.0, exclude=None):
         )
 
     # Use plot_shape_hexes to plot the grid
-    return plot_shape_hexes(grid_shape, hex_size=hex_size)
+    return plot_shape_hexes(grid_shape, hex_size=hex_size, label_hexes=label_hexes)
 
 
 def _hex_center(i, j, hex_size=1.0):
