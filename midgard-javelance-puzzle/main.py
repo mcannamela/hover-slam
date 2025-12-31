@@ -126,7 +126,7 @@ def main(
 
     # Create output directory with timestamp
     timestamp = datetime.now().isoformat(timespec="seconds").replace(":", "-")
-    output_dir = Path("output") / timestamp
+    output_dir = Path(__file__).parent / "output" / timestamp
     output_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Saving results to: {output_dir}")
 
