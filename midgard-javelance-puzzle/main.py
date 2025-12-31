@@ -108,6 +108,11 @@ def main(
         "--log-level",
         help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
     ),
+    sort_by_previous: str = typer.Option(
+        None,
+        "--sort-by-previous",
+        help="Path to previous summary_results.parquet to sort combinations by cost",
+    ),
 ):
     """
     Solve packing problems for different region combinations.
@@ -115,6 +120,9 @@ def main(
     By default, solves the first few combinations without showing plots.
     Use --show-plots to display interactive plots, --seed to shuffle combinations,
     and --max-combinations to limit how many are solved.
+
+    Use --sort-by-previous to load a previous run's results and solve combinations
+    ordered by their previous total cost (lowest cost first).
     """
     # Configure logging level
     logger.remove()  # Remove default handler
@@ -146,8 +154,62 @@ def main(
     # Get all region combinations
     region_combinations = get_array_combinations(np.arange(len(JAVELANCE_REGIONS)), 4)
 
-    # Shuffle if seed is provided
-    if seed is not None:
+    # Sort by previous results if provided
+    if sort_by_previous is not None:
+        if seed is not None:
+            logger.warning(
+                "Both --sort-by-previous and --seed provided; --sort-by-previous takes precedence"
+            )
+
+        # Load previous results
+        previous_results_path = Path(sort_by_previous)
+        if not previous_results_path.exists():
+            raise FileNotFoundError(f"Previous results file not found: {sort_by_previous}")
+
+        logger.info(f"Loading previous results from: {sort_by_previous}")
+        previous_df = pl.read_parquet(previous_results_path)
+
+        # Parse targeted_regions and compute mean cost per combination
+        # Group by targeted_regions and take the minimum total_cost (best strategy)
+        cost_by_regions = (
+            previous_df.group_by("targeted_regions")
+            .agg(pl.col("total_cost").min().alias("min_cost"))
+            .sort("min_cost")
+        )
+
+        # Create a mapping from region tuple to cost
+        region_costs = {}
+        for row in cost_by_regions.iter_rows(named=True):
+            region_str = row["targeted_regions"]
+            region_tuple = tuple(sorted(map(int, region_str.split(","))))
+            region_costs[region_tuple] = row["min_cost"]
+
+        # Sort combinations: first those in previous results (by cost), then the rest
+        combinations_with_cost = []
+        combinations_without_cost = []
+
+        for combo in region_combinations:
+            combo_tuple = tuple(sorted(combo))
+            if combo_tuple in region_costs:
+                combinations_with_cost.append((region_costs[combo_tuple], combo))
+            else:
+                combinations_without_cost.append(combo)
+
+        # Sort known combinations by cost
+        combinations_with_cost.sort(key=lambda x: x[0])
+
+        # Rebuild region_combinations: sorted known ones first, then unknown ones
+        region_combinations = np.array(
+            [combo for _, combo in combinations_with_cost] + combinations_without_cost
+        )
+
+        logger.info(
+            f"Sorted {len(combinations_with_cost)} combinations by previous cost "
+            f"({len(combinations_without_cost)} new combinations added at end)"
+        )
+
+    # Shuffle if seed is provided (and sort_by_previous not set)
+    elif seed is not None:
         rng = np.random.default_rng(seed)
         rng.shuffle(region_combinations)
         logger.info(
