@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from plotly.graph_objs import Figure
 
+from javelance.javelance import JAVELANCE_REGIONS
 from javelance.packing import (
     PackingProblem,
     PackingSolution,
@@ -11,7 +12,7 @@ from javelance.packing import (
     get_array_combinations,
 )
 from javelance.plotting import plot_javelance, plot_packing_solution
-from javelance.shapes import Shape
+from javelance.shapes import Shape, union_shapes
 
 
 def test_get_array_combinations():
@@ -559,19 +560,24 @@ def test_javelance_packing_visualization():
     for sprocket in SPROCKETS:
         pieces.append(("SPROCKET", sprocket, 9.9))
 
+    combo = range(4)
+    regions = [JAVELANCE_REGIONS[i] for i in combo]
     problem = PackingProblem(
-        target=JAVELANCE, pieces=pieces, forbidden_edges=JAVELANCE_FORBIDDEN_EDGES
+        target=union_shapes(regions),
+        pieces=pieces,
+        forbidden_edges=JAVELANCE_FORBIDDEN_EDGES,
     )
 
-    # Solve with best strategy
-    solution = greedy_pack(problem, strategy="cost_per_node")
+    strategy = "cost_per_node"
+    solution = greedy_pack(problem, strategy=strategy)
 
     print(f"\n=== Best Solution (cost_per_node) ===")
     print(f"Coverage: {solution.coverage:.2%}")
     print(f"Total cost: {solution.total_cost:.2f}")
     print(f"Pieces placed: {len(solution.placements)}")
 
-    fig = plot_packing_solution(solution)
+    title = f"Targeted Regions: {combo}  <br>Strategy: {strategy} <br>(Coverage: {solution.coverage:.2%})<br>(Cost: {solution.total_cost:.2f})"
+    fig = plot_packing_solution(regions, solution, title=title)
 
     fig.show()
 

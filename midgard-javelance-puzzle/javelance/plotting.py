@@ -121,7 +121,7 @@ def plot_shape_hexes(shape, hex_size=1.0, label_hexes=True, interactive=False):
         max_y = 4 * R
 
     # Set a base height and calculate width to match the aspect ratio
-    base_height = 800
+    base_height = 700
     aspect_ratio = max_x / max_y if max_y > 0 else 1.0
     plot_width = int(base_height * aspect_ratio)
     plot_height = base_height
