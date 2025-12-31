@@ -578,26 +578,8 @@ def plot_packing_solution(
 
     # Plot each placed piece with a distinct jittered color
     for i, (name, shape) in enumerate(solution.placements):
-        # Use different base colors for different piece types
-        if name == "DOODAD":
-            base_color = "rgb(0, 200, 0)"  # Green
-        elif name == "GIZMO":
-            base_color = "rgb(0, 0, 200)"  # Blue
-        else:  # SPROCKET
-            base_color = "rgb(200, 0, 200)"  # Magenta
-
-        # Create a shape with the base color to use jittered_color
-        colored_shape = Shape(
-            nodes=shape.nodes, edges=shape.edges, mean_color=base_color
-        )
-        color = colored_shape.jittered_color(jitter_amount=30)
-
-        plot_shape(
+        shape.plot(
             fig,
-            shape.nodes,
-            shape.edges,
-            node_color=color,
-            edge_color=color,
             alpha=0.8,
             labels=lambda i_, j_: f"{i}",
         )
