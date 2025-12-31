@@ -15,7 +15,12 @@ from javelance.javelance import (
     JAVELANCE_REGIONS,
     SPROCKETS,
 )
-from javelance.packing import PackingProblem, PackingSolution, get_array_combinations, greedy_pack
+from javelance.packing import (
+    PackingProblem,
+    PackingSolution,
+    get_array_combinations,
+    greedy_pack,
+)
 from javelance.plotting import plot_packing_solution
 from javelance.schemas import PackingResultsSchema
 from javelance.shapes import Shape, union_shapes
@@ -26,17 +31,23 @@ def serialize_solution_to_json(solution: PackingSolution) -> dict:
     # Serialize placements (name, Shape)
     placements_serialized = []
     for name, shape in solution.placements:
-        placements_serialized.append({
-            "name": name,
-            "shape": {
-                "nodes": shape.nodes.tolist(),
-                "edges": shape.edges.tolist(),
+        placements_serialized.append(
+            {
+                "name": name,
+                "shape": {
+                    "nodes": shape.nodes.tolist(),
+                    "edges": shape.edges.tolist(),
+                },
             }
-        })
+        )
 
     # Convert numpy integers to Python integers for JSON serialization
-    covered_nodes_list = sorted([[int(x) for x in node] for node in solution.covered_nodes])
-    target_nodes_list = sorted([[int(x) for x in node] for node in solution.target_nodes])
+    covered_nodes_list = sorted(
+        [[int(x) for x in node] for node in solution.covered_nodes]
+    )
+    target_nodes_list = sorted(
+        [[int(x) for x in node] for node in solution.target_nodes]
+    )
 
     return {
         "placements": placements_serialized,
@@ -73,7 +84,7 @@ def deserialize_solution_from_json(data: dict) -> PackingSolution:
 
 def main():
     # Create output directory with timestamp
-    timestamp = datetime.now().isoformat(timespec='seconds').replace(':', '-')
+    timestamp = datetime.now().isoformat(timespec="seconds").replace(":", "-")
     output_dir = Path("output") / timestamp
     output_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Saving results to: {output_dir}")
@@ -128,10 +139,16 @@ def main():
 
             logger.info(f"  Piece breakdown: {piece_counts}")
 
-            # Generate plot
-            title = f"Targeted Regions: {combo}  <br>Strategy: {strategy} <br>(Coverage: {solution.coverage:.2%})<br>(Cost: {solution.total_cost:.2f})"
-            fig = plot_packing_solution(regions, solution, title=title)
-            fig.show()
+            # Collect summary data for dataframe
+            num_target_nodes = len(solution.target_nodes)
+            num_covered_target_nodes = len(solution.covered_nodes)
+            num_empty_target_hexes = len(solution.target_nodes - solution.covered_nodes)
+
+            cost_per_target_node = solution.total_cost / num_target_nodes
+
+            n_doodads = piece_counts.get("DOODAD", 0)
+            n_gizmods = piece_counts.get("GIZMO", 0)
+            n_sprockets = piece_counts.get("SPROCKET", 0)
 
             # Create descriptive filename components
             regions_str = "-".join(map(str, combo))
@@ -141,33 +158,41 @@ def main():
 
             # Save individual solution as JSON
             result_file = output_dir / f"{base_filename}_solution.json"
-            with open(result_file, 'w') as f:
+            with open(result_file, "w") as f:
                 json.dump(serialize_solution_to_json(solution), f, indent=2)
             logger.info(f"  Saved solution to: {result_file}")
+
+            # Generate plot
+            title = (
+                f"Targeted Regions: {combo}  <br>Strategy: {strategy}"
+                f"<br>(Nodes, Covered, Uncovered)=({num_target_nodes},{num_covered_target_nodes}, {num_empty_target_hexes})"
+                f"<br>(Doodads, Gizmos, Sprockets)=({n_doodads},{n_gizmods},{n_sprockets})"
+                f"<br>Coverage: {solution.coverage:.2%}"
+                f"<br>Cost: {solution.total_cost:.2f}, per node: {cost_per_target_node:.2f}"
+            )
+            fig = plot_packing_solution(regions, solution, title=title)
+            fig.show()
 
             # Save plot as HTML
             plot_file = output_dir / f"{base_filename}_plot.html"
             fig.write_html(str(plot_file))
             logger.info(f"  Saved plot to: {plot_file}")
 
-            # Collect summary data for dataframe
-            num_empty_target_hexes = len(solution.target_nodes - solution.covered_nodes)
-            num_target_nodes = len(solution.target_nodes)
-            cost_per_target_node = solution.total_cost / num_target_nodes
-
-            summary_results.append({
-                "targeted_regions": ",".join(map(str, combo)),
-                "packing_strategy": strategy,
-                "packing_strategy_params": json.dumps(kwargs),
-                "num_doodads": piece_counts.get("DOODAD", 0),
-                "num_gizmos": piece_counts.get("GIZMO", 0),
-                "num_sprockets": piece_counts.get("SPROCKET", 0),
-                "num_empty_target_hexes": num_empty_target_hexes,
-                "num_covered_target_nodes": len(solution.covered_nodes),
-                "num_target_nodes": num_target_nodes,
-                "total_cost": solution.total_cost,
-                "cost_per_target_node": cost_per_target_node,
-            })
+            summary_results.append(
+                {
+                    "targeted_regions": ",".join(map(str, combo)),
+                    "packing_strategy": strategy,
+                    "packing_strategy_params": json.dumps(kwargs),
+                    "num_doodads": n_doodads,
+                    "num_gizmos": n_gizmods,
+                    "num_sprockets": n_sprockets,
+                    "num_empty_target_hexes": num_empty_target_hexes,
+                    "num_covered_target_nodes": len(solution.covered_nodes),
+                    "num_target_nodes": num_target_nodes,
+                    "total_cost": solution.total_cost,
+                    "cost_per_target_node": cost_per_target_node,
+                }
+            )
 
             result_counter += 1
 
