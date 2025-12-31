@@ -568,7 +568,16 @@ def plot_packing_solution(
     fig = plot_javelance(targeted_regions)
 
     if title:
-        fig.update_layout(title=title)
+        # Count the number of lines in the title (br tags + 1)
+        num_lines = title.count('<br>') + 1
+        # Increase top margin based on number of title lines
+        # Base margin of 100 + 30 pixels per additional line
+        top_margin = 100 + (num_lines - 1) * 30
+
+        fig.update_layout(
+            title=title,
+            margin=dict(t=top_margin)
+        )
 
     # Plot each placed piece with a distinct jittered color
     for i, (name, shape) in enumerate(solution.placements):

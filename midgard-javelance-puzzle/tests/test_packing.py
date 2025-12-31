@@ -544,9 +544,7 @@ def test_heuristic_expected_coverage_cost_javelance_size():
 
 def test_javelance_packing_visualization():
     """Visualize the JAVELANCE packing solution."""
-    from javelance.plotting import plot_shape
     from javelance.javelance import JAVELANCE_FORBIDDEN_EDGES
-    from javelance.javelance import JAVELANCE
     from javelance.javelance import SPROCKETS
     from javelance.javelance import GIZMOS
     from javelance.javelance import DOODADS

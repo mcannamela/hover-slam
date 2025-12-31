@@ -181,7 +181,7 @@ class PackingSolution:
         placements_cost = sum(cost for _, _, cost in placements)
         covered = set()
         for _, shape, _ in placements:
-            covered |= shape.node_set()
+            covered |= shape.node_set() & target_nodes
         n_uncovered = len(target_nodes - covered)
         total_cost = placements_cost + n_uncovered * uncovered_node_cost
         coverage = len(covered) / len(target_nodes) if target_nodes else 0
