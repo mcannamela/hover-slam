@@ -1,6 +1,5 @@
 import functools
 import json
-import pickle
 from datetime import datetime
 from pathlib import Path
 
@@ -16,10 +15,60 @@ from javelance.javelance import (
     JAVELANCE_REGIONS,
     SPROCKETS,
 )
-from javelance.packing import PackingProblem, get_array_combinations, greedy_pack
+from javelance.packing import PackingProblem, PackingSolution, get_array_combinations, greedy_pack
 from javelance.plotting import plot_packing_solution
 from javelance.schemas import PackingResultsSchema
 from javelance.shapes import Shape, union_shapes
+
+
+def serialize_solution_to_json(solution: PackingSolution) -> dict:
+    """Convert a PackingSolution to a JSON-serializable dict."""
+    # Serialize placements (name, Shape)
+    placements_serialized = []
+    for name, shape in solution.placements:
+        placements_serialized.append({
+            "name": name,
+            "shape": {
+                "nodes": shape.nodes.tolist(),
+                "edges": shape.edges.tolist(),
+            }
+        })
+
+    # Convert numpy integers to Python integers for JSON serialization
+    covered_nodes_list = sorted([[int(x) for x in node] for node in solution.covered_nodes])
+    target_nodes_list = sorted([[int(x) for x in node] for node in solution.target_nodes])
+
+    return {
+        "placements": placements_serialized,
+        "total_cost": float(solution.total_cost),
+        "covered_nodes": covered_nodes_list,
+        "coverage": float(solution.coverage),
+        "target_nodes": target_nodes_list,
+    }
+
+
+def deserialize_solution_from_json(data: dict) -> PackingSolution:
+    """Reconstruct a PackingSolution from a JSON dict."""
+    # Deserialize placements
+    placements = []
+    for p in data["placements"]:
+        shape = Shape(
+            nodes=np.array(p["shape"]["nodes"]),
+            edges=np.array(p["shape"]["edges"]),
+        )
+        placements.append((p["name"], shape))
+
+    # Deserialize node sets
+    covered_nodes = {tuple(node) for node in data["covered_nodes"]}
+    target_nodes = {tuple(node) for node in data["target_nodes"]}
+
+    return PackingSolution(
+        placements=placements,
+        total_cost=data["total_cost"],
+        covered_nodes=covered_nodes,
+        coverage=data["coverage"],
+        target_nodes=target_nodes,
+    )
 
 
 def main():
@@ -84,15 +133,20 @@ def main():
             fig = plot_packing_solution(regions, solution, title=title)
             fig.show()
 
-            # Save individual solution
+            # Create descriptive filename components
+            regions_str = "-".join(map(str, combo))
+            strategy_str = strategy.replace("_", "-")
             result_id = f"result_{result_counter:04d}"
-            result_file = output_dir / f"{result_id}_solution.pkl"
-            with open(result_file, 'wb') as f:
-                pickle.dump(solution, f)
+            base_filename = f"{result_id}_regions_{regions_str}_strategy_{strategy_str}"
+
+            # Save individual solution as JSON
+            result_file = output_dir / f"{base_filename}_solution.json"
+            with open(result_file, 'w') as f:
+                json.dump(serialize_solution_to_json(solution), f, indent=2)
             logger.info(f"  Saved solution to: {result_file}")
 
             # Save plot as HTML
-            plot_file = output_dir / f"{result_id}_plot.html"
+            plot_file = output_dir / f"{base_filename}_plot.html"
             fig.write_html(str(plot_file))
             logger.info(f"  Saved plot to: {plot_file}")
 
