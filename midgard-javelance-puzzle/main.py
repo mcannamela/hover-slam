@@ -7,6 +7,7 @@ import numpy as np
 import polars as pl
 import typer
 from loguru import logger
+from tqdm import tqdm
 
 from javelance.javelance import (
     DOODADS,
@@ -163,7 +164,7 @@ def main(
 
     logger.info(f"Solving {len(region_combinations)} region combinations")
 
-    for combo in region_combinations:
+    for combo in tqdm(region_combinations):
         logger.info(f"Testing regions: {combo}")
         regions = [JAVELANCE_REGIONS[i] for i in combo]
         target = union_shapes(regions)
