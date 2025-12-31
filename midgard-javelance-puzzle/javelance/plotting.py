@@ -4,8 +4,13 @@ import plotly.io as pio
 from plotly.graph_objs import Figure
 
 from javelance.packing import PackingSolution
-from javelance.shapes import Shape
-from javelance.javelance import JAVELANCE_GRID_SHAPE, JAVELANCE, JAVELANCE_FORBIDDEN
+from javelance.shapes import Shape, union_shapes
+from javelance.javelance import (
+    JAVELANCE_GRID_SHAPE,
+    JAVELANCE,
+    JAVELANCE_FORBIDDEN,
+    JAVELANCE_REGIONS,
+)
 
 # Set default renderer to always open plots in browser
 pio.renderers.default = "browser"
@@ -68,8 +73,12 @@ def plot_shape_hexes(shape, hex_size=1.0, label_hexes=True, interactive=False):
         if interactive:
             # Make filled and clickable
             trace_params["fill"] = "toself"
-            trace_params["fillcolor"] = "rgba(255, 255, 255, 0.01)"  # Nearly transparent
-            trace_params["hoverinfo"] = "none"  # Don't show hover text, but allow clicks
+            trace_params["fillcolor"] = (
+                "rgba(255, 255, 255, 0.01)"  # Nearly transparent
+            )
+            trace_params["hoverinfo"] = (
+                "none"  # Don't show hover text, but allow clicks
+            )
             # Store hex address in customdata so clicks can identify which hex was clicked
             trace_params["customdata"] = [[i, j]] * len(vertices_x)
         else:
@@ -434,9 +443,7 @@ def plot_boundary_edges(
     # Convert edge color to rgba format with alpha
     if edge_color.startswith("rgb"):
         # Already in rgb format, convert to rgba
-        edge_rgba_color = edge_color.replace("rgb", "rgba").replace(
-            ")", f", {alpha})"
-        )
+        edge_rgba_color = edge_color.replace("rgb", "rgba").replace(")", f", {alpha})")
     else:
         # Named color, use directly with opacity parameter
         edge_rgba_color = edge_color
@@ -530,35 +537,35 @@ def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1, alpha=0.4):
     )
 
 
-def plot_javelance() -> Figure:
+def plot_javelance(regions=None) -> Figure:
+    if regions is None:
+        regions = JAVELANCE_REGIONS.values()
+
     # Create a grid large enough for the Javelance
     fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE)
-    offset = np.array([0, 0])
 
     # Plot JAVELANCE_FORBIDDEN
     plot_shape(
         fig,
-        JAVELANCE_FORBIDDEN.translate(offset).nodes,
-        JAVELANCE_FORBIDDEN.translate(offset).edges,
+        JAVELANCE_FORBIDDEN.nodes,
+        JAVELANCE_FORBIDDEN.edges,
         node_color=JAVELANCE_FORBIDDEN.mean_color,
         edge_color=JAVELANCE_FORBIDDEN.mean_color,
     )
 
     # Plot JAVELANCE
-    javelance_offset = JAVELANCE.translate(offset)
-    plot_shape(
-        fig,
-        javelance_offset.nodes,
-        javelance_offset.edges,
-        node_color=javelance_offset.mean_color,
-        edge_color=javelance_offset.mean_color,
-    )
+    for r in regions:
+        r.plot(fig, plot_boundary=True)
+
+    JAVELANCE.difference(union_shapes(regions)).plot(fig)
     return fig
 
 
-def plot_packing_solution(solution: PackingSolution, title: str = None) -> Figure:
+def plot_packing_solution(
+    targeted_regions: list[Shape], solution: PackingSolution, title: str = None
+) -> Figure:
     # Create visualization
-    fig = plot_javelance()
+    fig = plot_javelance(targeted_regions)
 
     if title:
         fig.update_layout(title=title)

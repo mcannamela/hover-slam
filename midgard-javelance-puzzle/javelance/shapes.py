@@ -1,3 +1,4 @@
+import functools
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Self
@@ -538,3 +539,13 @@ class Shape:
             raise ValueError(
                 f"mean_color must be in 'rgb(r, g, b)' or 'rgba(r, g, b, a)' format, got '{color_str}'"
             )
+
+
+def union_shapes(shapes: list[Shape]) -> Shape:
+    if len(shapes) == 0:
+        return Shape.from_sets()
+    return functools.reduce(
+        lambda x, y: x.union(y),
+        shapes,
+        Shape.from_sets(mean_color=shapes[0].mean_color),
+    )

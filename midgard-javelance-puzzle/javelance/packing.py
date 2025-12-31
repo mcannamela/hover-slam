@@ -168,6 +168,7 @@ class PackingSolution:
     total_cost: float
     covered_nodes: set[Shape.Node]
     coverage: float  # Fraction of target nodes covered
+    target_nodes: set[Shape.Node]
 
     @classmethod
     def from_placements(
@@ -192,6 +193,7 @@ class PackingSolution:
             total_cost=total_cost,
             covered_nodes=covered,
             coverage=coverage,
+            target_nodes=target_nodes,
         )
 
 
