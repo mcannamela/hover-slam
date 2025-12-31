@@ -292,6 +292,80 @@ def heuristic_expected_coverage_cost(
     return priorities
 
 
+def heuristic_expected_coverage_cost_lookahead(
+    problem: PackingProblem,
+    occupied_nodes: set[Shape.Node],
+    all_candidates: list[Candidate],
+    uncovered_node_cost: float = 14.3,
+    num_lookahead: int = 10,
+) -> np.ndarray:
+    """
+    Enhanced heuristic with lookahead for top candidates.
+
+    First computes priorities using expected_coverage_cost logic.
+    Then for the best 10 candidates, performs lookahead:
+    - Simulates placing each top candidate
+    - Recomputes heuristic for remaining valid placements
+    - Sets priority to: own_priority + min(recomputed_priorities)
+
+    For candidates not in top 10, doubles their priority.
+    """
+    # Step 1: Compute initial priorities using expected_coverage_cost logic
+    priorities = heuristic_expected_coverage_cost(
+        problem, occupied_nodes, all_candidates, uncovered_node_cost
+    )
+
+    # Step 2: Identify top candidates (lowest priorities)
+    # Get indices sorted by priority (ascending)
+    sorted_indices = np.argsort(priorities)
+    top_indices = sorted_indices[:num_lookahead]
+
+    # Step 3: For each top candidate, perform lookahead
+    lookahead_priorities = np.zeros(len(all_candidates))
+
+    for idx in top_indices:
+        if priorities[idx] == float("inf"):
+            # Skip invalid candidates
+            lookahead_priorities[idx] = float("inf")
+            continue
+
+        # Simulate placing this candidate
+        _, placement, _, _ = all_candidates[idx]
+        simulated_occupied = occupied_nodes | placement.node_set()
+
+        # Filter remaining valid candidates (excluding this one and those that conflict)
+        remaining_candidates = []
+        for other_idx, (name, other_placement, cost, num_nodes) in enumerate(
+            all_candidates
+        ):
+            if other_idx == idx:
+                continue  # Skip the current candidate
+
+            # Check if placement is still valid after simulated placement
+            if problem.is_valid_placement(other_placement, simulated_occupied):
+                remaining_candidates.append((name, other_placement, cost, num_nodes))
+
+        # Recompute heuristic for remaining candidates
+        if remaining_candidates:
+            recomputed_priorities = heuristic_expected_coverage_cost(
+                problem, simulated_occupied, remaining_candidates, uncovered_node_cost
+            )
+            min_recomputed = np.min(recomputed_priorities)
+        else:
+            # No remaining candidates, use 0 as the future cost
+            min_recomputed = 0.0
+
+        # Set lookahead priority: own priority + min future priority
+        lookahead_priorities[idx] = priorities[idx] + min_recomputed
+
+    # Step 4: For non-top candidates, double their priority
+    non_top_indices = sorted_indices[num_lookahead:]
+    for idx in non_top_indices:
+        lookahead_priorities[idx] = priorities[idx] * 2.0
+
+    return lookahead_priorities
+
+
 # ============================================================================
 # Selector Functions
 # ============================================================================
@@ -315,6 +389,7 @@ HEURISTIC_REGISTRY: dict[str, HeuristicFn] = {
     "largest_first": heuristic_largest_first,
     "cheapest_first": heuristic_cheapest_first,
     "expected_coverage_cost": heuristic_expected_coverage_cost,
+    "expected_coverage_cost_lookahead": heuristic_expected_coverage_cost_lookahead,
 }
 
 

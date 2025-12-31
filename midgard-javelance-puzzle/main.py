@@ -181,6 +181,7 @@ def main(
         for strategy, kwargs in [
             # ("largest_first", {}),
             ("expected_coverage_cost", {"recompute_heuristic": True}),
+            # ("expected_coverage_cost_lookahead", {"recompute_heuristic": True}),
         ]:
             solution = greedy_pack(problem, strategy=strategy, **kwargs)
 
