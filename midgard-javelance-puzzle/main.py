@@ -90,17 +90,22 @@ def main(
     show_plots: bool = typer.Option(
         False,
         "--show-plots/--no-show-plots",
-        help="Whether to display plots interactively while solving"
+        help="Whether to display plots interactively while solving",
     ),
     seed: int = typer.Option(
         None,
         "--seed",
-        help="Random seed for shuffling the order of region combinations"
+        help="Random seed for shuffling the order of region combinations",
     ),
     max_combinations: int = typer.Option(
         None,
         "--max-combinations",
-        help="Maximum number of region combinations to solve"
+        help="Maximum number of region combinations to solve",
+    ),
+    log_level: str = typer.Option(
+        "INFO",
+        "--log-level",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
     ),
 ):
     """
@@ -110,6 +115,14 @@ def main(
     Use --show-plots to display interactive plots, --seed to shuffle combinations,
     and --max-combinations to limit how many are solved.
     """
+    # Configure logging level
+    logger.remove()  # Remove default handler
+    logger.add(
+        lambda msg: print(msg, end=""),
+        level=log_level.upper(),
+        format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    )
+
     # Create output directory with timestamp
     timestamp = datetime.now().isoformat(timespec="seconds").replace(":", "-")
     output_dir = Path("output") / timestamp
@@ -136,15 +149,17 @@ def main(
     if seed is not None:
         rng = np.random.default_rng(seed)
         rng.shuffle(region_combinations)
-        logger.info(f"Shuffled {len(region_combinations)} combinations with seed={seed}")
+        logger.info(
+            f"Shuffled {len(region_combinations)} combinations with seed={seed}"
+        )
 
     # Limit to max_combinations if specified
     if max_combinations is not None:
         region_combinations = region_combinations[:max_combinations]
         logger.info(f"Limited to {max_combinations} combinations")
     else:
-        # Default to first 3 if no limit specified
-        region_combinations = region_combinations[:3]
+        # Default to all combinations if max not given
+        region_combinations = region_combinations
 
     logger.info(f"Solving {len(region_combinations)} region combinations")
 
