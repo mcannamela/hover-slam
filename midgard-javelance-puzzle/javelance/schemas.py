@@ -52,10 +52,20 @@ class PackingResultsSchema(pa.DataFrameModel):
         description="Number of target nodes covered by placed pieces"
     )
 
-    # Cost metric
+    num_target_nodes: int = pa.Field(
+        ge=1,
+        description="Total number of target nodes in the packing problem"
+    )
+
+    # Cost metrics
     total_cost: float = pa.Field(
         ge=0.0,
         description="Total cost of the packing solution"
+    )
+
+    cost_per_target_node: float = pa.Field(
+        ge=0.0,
+        description="Cost per target node (total_cost / num_target_nodes)"
     )
 
     class Config:

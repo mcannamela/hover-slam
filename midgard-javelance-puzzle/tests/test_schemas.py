@@ -18,7 +18,9 @@ def test_packing_results_schema_valid():
         "num_sprockets": [2],
         "num_empty_target_hexes": [10],
         "num_covered_target_nodes": [50],
+        "num_target_nodes": [60],
         "total_cost": [123.45],
+        "cost_per_target_node": [2.0575],
     })
 
     # Validate the dataframe
@@ -41,7 +43,9 @@ def test_packing_results_schema_multiple_rows():
         "num_sprockets": [2, 1, 3],
         "num_empty_target_hexes": [10, 15, 5],
         "num_covered_target_nodes": [50, 45, 60],
+        "num_target_nodes": [60, 60, 65],
         "total_cost": [123.45, 98.76, 150.00],
+        "cost_per_target_node": [2.0575, 1.646, 2.3077],
     })
 
     # Validate the dataframe
@@ -64,7 +68,9 @@ def test_packing_results_schema_coercion():
         "num_sprockets": [2.0],
         "num_empty_target_hexes": [10.0],
         "num_covered_target_nodes": [50.0],
+        "num_target_nodes": [60.0],
         "total_cost": [123],  # Int that should be coerced to float
+        "cost_per_target_node": [2],  # Int that should be coerced to float
     })
 
     # Validate the dataframe
@@ -87,7 +93,9 @@ def test_packing_results_schema_negative_values():
         "num_sprockets": [2],
         "num_empty_target_hexes": [10],
         "num_covered_target_nodes": [50],
+        "num_target_nodes": [60],
         "total_cost": [123.45],
+        "cost_per_target_node": [2.0575],
     })
 
     # Validation should raise an error
@@ -107,7 +115,9 @@ def test_packing_results_schema_missing_column():
         # Missing num_sprockets
         "num_empty_target_hexes": [10],
         "num_covered_target_nodes": [50],
+        "num_target_nodes": [60],
         "total_cost": [123.45],
+        "cost_per_target_node": [2.0575],
     })
 
     # Validation should raise an error
@@ -127,7 +137,9 @@ def test_packing_results_schema_extra_column():
         "num_sprockets": [2],
         "num_empty_target_hexes": [10],
         "num_covered_target_nodes": [50],
+        "num_target_nodes": [60],
         "total_cost": [123.45],
+        "cost_per_target_node": [2.0575],
         "extra_column": ["should fail"],  # Extra column
     })
 
@@ -148,7 +160,9 @@ def test_packing_results_schema_zero_values():
         "num_sprockets": [0],
         "num_empty_target_hexes": [0],
         "num_covered_target_nodes": [0],
+        "num_target_nodes": [1],  # Must be >= 1
         "total_cost": [0.0],
+        "cost_per_target_node": [0.0],
     })
 
     # Validate the dataframe

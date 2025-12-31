@@ -152,6 +152,9 @@ def main():
 
             # Collect summary data for dataframe
             num_empty_target_hexes = len(solution.target_nodes - solution.covered_nodes)
+            num_target_nodes = len(solution.target_nodes)
+            cost_per_target_node = solution.total_cost / num_target_nodes
+
             summary_results.append({
                 "targeted_regions": ",".join(map(str, combo)),
                 "packing_strategy": strategy,
@@ -161,7 +164,9 @@ def main():
                 "num_sprockets": piece_counts.get("SPROCKET", 0),
                 "num_empty_target_hexes": num_empty_target_hexes,
                 "num_covered_target_nodes": len(solution.covered_nodes),
+                "num_target_nodes": num_target_nodes,
                 "total_cost": solution.total_cost,
+                "cost_per_target_node": cost_per_target_node,
             })
 
             result_counter += 1
