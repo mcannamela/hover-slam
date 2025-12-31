@@ -121,7 +121,7 @@ def plot_shape_hexes(shape, hex_size=1.0, label_hexes=True, interactive=False):
         max_y = 4 * R
 
     # Set a base height and calculate width to match the aspect ratio
-    base_height = 700
+    base_height = 800
     aspect_ratio = max_x / max_y if max_y > 0 else 1.0
     plot_width = int(base_height * aspect_ratio)
     plot_height = base_height
@@ -542,7 +542,7 @@ def plot_javelance(regions=None) -> Figure:
         regions = JAVELANCE_REGIONS.values()
 
     # Create a grid large enough for the Javelance
-    fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE)
+    fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE, label_hexes=False)
 
     # Plot JAVELANCE_FORBIDDEN
     plot_shape(
@@ -569,15 +569,12 @@ def plot_packing_solution(
 
     if title:
         # Count the number of lines in the title (br tags + 1)
-        num_lines = title.count('<br>') + 1
+        num_lines = title.count("<br>") + 1
         # Increase top margin based on number of title lines
         # Base margin of 100 + 30 pixels per additional line
         top_margin = 100 + (num_lines - 1) * 30
 
-        fig.update_layout(
-            title=title,
-            margin=dict(t=top_margin)
-        )
+        fig.update_layout(title=title, margin=dict(t=top_margin))
 
     # Plot each placed piece with a distinct jittered color
     for i, (name, shape) in enumerate(solution.placements):
@@ -602,5 +599,6 @@ def plot_packing_solution(
             node_color=color,
             edge_color=color,
             alpha=0.8,
+            labels=lambda i_, j_: f"{i}",
         )
     return fig
