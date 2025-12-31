@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import polars as pl
+import typer
 from loguru import logger
 
 from javelance.javelance import (
@@ -24,6 +25,8 @@ from javelance.packing import (
 from javelance.plotting import plot_packing_solution
 from javelance.schemas import PackingResultsSchema
 from javelance.shapes import Shape, union_shapes
+
+app = typer.Typer()
 
 
 def serialize_solution_to_json(solution: PackingSolution) -> dict:
@@ -82,7 +85,31 @@ def deserialize_solution_from_json(data: dict) -> PackingSolution:
     )
 
 
-def main():
+@app.command()
+def main(
+    show_plots: bool = typer.Option(
+        False,
+        "--show-plots/--no-show-plots",
+        help="Whether to display plots interactively while solving"
+    ),
+    seed: int = typer.Option(
+        None,
+        "--seed",
+        help="Random seed for shuffling the order of region combinations"
+    ),
+    max_combinations: int = typer.Option(
+        None,
+        "--max-combinations",
+        help="Maximum number of region combinations to solve"
+    ),
+):
+    """
+    Solve packing problems for different region combinations.
+
+    By default, solves the first few combinations without showing plots.
+    Use --show-plots to display interactive plots, --seed to shuffle combinations,
+    and --max-combinations to limit how many are solved.
+    """
     # Create output directory with timestamp
     timestamp = datetime.now().isoformat(timespec="seconds").replace(":", "-")
     output_dir = Path("output") / timestamp
@@ -102,9 +129,26 @@ def main():
     summary_results = []
     result_counter = 0
 
+    # Get all region combinations
     region_combinations = get_array_combinations(np.arange(len(JAVELANCE_REGIONS)), 4)
 
-    for combo in region_combinations[:3]:
+    # Shuffle if seed is provided
+    if seed is not None:
+        rng = np.random.default_rng(seed)
+        rng.shuffle(region_combinations)
+        logger.info(f"Shuffled {len(region_combinations)} combinations with seed={seed}")
+
+    # Limit to max_combinations if specified
+    if max_combinations is not None:
+        region_combinations = region_combinations[:max_combinations]
+        logger.info(f"Limited to {max_combinations} combinations")
+    else:
+        # Default to first 3 if no limit specified
+        region_combinations = region_combinations[:3]
+
+    logger.info(f"Solving {len(region_combinations)} region combinations")
+
+    for combo in region_combinations:
         logger.info(f"Testing regions: {combo}")
         regions = [JAVELANCE_REGIONS[i] for i in combo]
         target = union_shapes(regions)
@@ -171,7 +215,10 @@ def main():
                 f"<br>Cost: {solution.total_cost:.2f}, per node: {cost_per_target_node:.2f}"
             )
             fig = plot_packing_solution(regions, solution, title=title)
-            fig.show()
+
+            # Show plot if requested
+            if show_plots:
+                fig.show()
 
             # Save plot as HTML
             plot_file = output_dir / f"{base_filename}_plot.html"
@@ -217,4 +264,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    app()
