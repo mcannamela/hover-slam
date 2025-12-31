@@ -539,7 +539,7 @@ def plot_small_shape(fig, nodes, edges, hex_size=1.0, jitter=0.1, alpha=0.4):
 
 def plot_javelance(regions=None) -> Figure:
     if regions is None:
-        regions = JAVELANCE_REGIONS.values()
+        regions = list(JAVELANCE_REGIONS.values())
 
     # Create a grid large enough for the Javelance
     fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE, label_hexes=False)
