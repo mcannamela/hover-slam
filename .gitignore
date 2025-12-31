@@ -97,7 +97,7 @@ ENV/
 # mkdocs documentation
 /site
 
-# mypy
+# mypy	
 .mypy_cache/
 
 .idea/*
@@ -110,3 +110,5 @@ lines.html
 gan_toy/tests/random_images.html
 resources/bokeh_tmp/*
 resources/matplotlib_tmp/*
+
+output/
