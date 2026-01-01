@@ -278,9 +278,9 @@ def pack_javelance(
         logger.info("\n=== Testing different greedy strategies ===")
 
         for strategy, kwargs in [
-            ("largest_first", {}),
+            # ("largest_first", {}),
             ("expected_coverage_cost", {"recompute_heuristic": True}),
-            ("expected_coverage_cost_lookahead", {"recompute_heuristic": True}),
+            # ("expected_coverage_cost_lookahead", {"recompute_heuristic": True}),
         ]:
             # Add empty_hex_cost to heuristic_kwargs
             heuristic_kwargs = {"uncovered_node_cost": empty_hex_cost}
