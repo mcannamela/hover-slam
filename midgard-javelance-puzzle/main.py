@@ -418,7 +418,9 @@ def analyze_solution(
     }
 
     # Create region node sets for overlap analysis
-    region_node_sets = {idx: region.node_set() for idx, region in JAVELANCE_REGIONS.items()}
+    region_node_sets = {
+        idx: region.node_set() for idx, region in JAVELANCE_REGIONS.items()
+    }
 
     # Determine which regions are targeted based on solution.target_nodes
     targeted_region_indices = []

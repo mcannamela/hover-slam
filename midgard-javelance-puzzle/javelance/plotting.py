@@ -545,19 +545,13 @@ def plot_javelance(regions=None) -> Figure:
     fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE, label_hexes=False)
 
     # Plot JAVELANCE_FORBIDDEN
-    plot_shape(
-        fig,
-        JAVELANCE_FORBIDDEN.nodes,
-        JAVELANCE_FORBIDDEN.edges,
-        node_color=JAVELANCE_FORBIDDEN.mean_color,
-        edge_color=JAVELANCE_FORBIDDEN.mean_color,
-    )
+    JAVELANCE_FORBIDDEN.plot(fig, inset_ratio=0.9)
 
     # Plot JAVELANCE
     for r in regions:
-        r.plot(fig, plot_boundary=True)
+        r.plot(fig, plot_boundary=True, inset_ratio=0.8)
 
-    JAVELANCE.difference(union_shapes(regions)).plot(fig)
+    JAVELANCE.difference(union_shapes(regions)).plot(fig, inset_ratio=0.8)
     return fig
 
 
@@ -581,6 +575,8 @@ def plot_packing_solution(
         shape.plot(
             fig,
             alpha=0.8,
+            inset_ratio=0.6,
+            jitter=0.1,
             labels=lambda i_, j_: f"{i}",
         )
     return fig
