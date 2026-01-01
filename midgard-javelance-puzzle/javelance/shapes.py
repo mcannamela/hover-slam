@@ -390,25 +390,36 @@ class Shape:
 
     def jittered_color(self, jitter_amount=20):
         """
-        Generate a color by adding random noise to the mean_color in RGB space.
+        Generate a color by adding random noise to the hue in HSV space.
 
         Parameters:
-        - jitter_amount: maximum amount to jitter each RGB channel (default 20)
+        - jitter_amount: maximum amount to jitter hue in degrees (default 20)
 
         Returns:
-        - A string in "rgb(r, g, b)" format with jittered values
+        - A string in "rgb(r, g, b)" format with jittered hue
         """
         r, g, b = self._parse_color()
 
-        # Add random jitter to each channel
-        r_jittered = r + np.random.randint(-jitter_amount, jitter_amount + 1)
-        g_jittered = g + np.random.randint(-jitter_amount, jitter_amount + 1)
-        b_jittered = b + np.random.randint(-jitter_amount, jitter_amount + 1)
+        # Convert RGB (0-255) to RGB (0-1) for matplotlib
+        rgb_normalized = np.array([r / 255.0, g / 255.0, b / 255.0])
 
-        # Clamp values to valid range [0, 255]
-        r_jittered = np.clip(r_jittered, 0, 255)
-        g_jittered = np.clip(g_jittered, 0, 255)
-        b_jittered = np.clip(b_jittered, 0, 255)
+        # Convert to HSV
+        hsv = mcolors.rgb_to_hsv(rgb_normalized)
+        h, s, v = hsv[0], hsv[1], hsv[2]
+
+        # Jitter the hue (h is in range [0, 1], representing 0-360 degrees)
+        # Convert jitter_amount from degrees to [0, 1] range
+        hue_jitter = np.random.uniform(-jitter_amount / 360.0, jitter_amount / 360.0)
+        h_jittered = (h + hue_jitter) % 1.0  # Wrap around to stay in [0, 1]
+
+        # Convert back to RGB
+        hsv_jittered = np.array([h_jittered, s, v])
+        rgb_jittered = mcolors.hsv_to_rgb(hsv_jittered)
+
+        # Convert back to 0-255 range and clamp
+        r_jittered = int(np.clip(rgb_jittered[0] * 255, 0, 255))
+        g_jittered = int(np.clip(rgb_jittered[1] * 255, 0, 255))
+        b_jittered = int(np.clip(rgb_jittered[2] * 255, 0, 255))
 
         return f"rgb({r_jittered}, {g_jittered}, {b_jittered})"
 
