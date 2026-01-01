@@ -162,9 +162,11 @@ def main(
             )
 
         # Load previous results
-        previous_results_path = Path(sort_by_previous)
+        previous_results_path = Path(__file__).parent / sort_by_previous
         if not previous_results_path.exists():
-            raise FileNotFoundError(f"Previous results file not found: {sort_by_previous}")
+            raise FileNotFoundError(
+                f"Previous results file not found: {sort_by_previous}"
+            )
 
         logger.info(f"Loading previous results from: {sort_by_previous}")
         previous_df = pl.read_parquet(previous_results_path)
@@ -243,7 +245,7 @@ def main(
         for strategy, kwargs in [
             # ("largest_first", {}),
             ("expected_coverage_cost", {"recompute_heuristic": True}),
-            # ("expected_coverage_cost_lookahead", {"recompute_heuristic": True}),
+            ("expected_coverage_cost_lookahead", {"recompute_heuristic": True}),
         ]:
             solution = greedy_pack(problem, strategy=strategy, **kwargs)
 
@@ -340,6 +342,166 @@ def main(
     logger.info(f"Saved summary CSV to: {csv_file}")
 
     logger.info(f"\n=== All results saved to: {output_dir} ===")
+
+
+@app.command()
+def analyze_solution(
+    solution_file: str = typer.Argument(
+        ...,
+        help="Path to solution JSON file to analyze"
+    ),
+    output_file: str = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file for annotated solution (JSON format)"
+    ),
+):
+    """
+    Analyze a solution file and annotate each placement with its rotation.
+
+    Loads a solution from a JSON file and determines which rotation of which
+    piece template each placement corresponds to. Displays the annotated
+    information and optionally saves it to a file.
+    """
+    solution_path = Path(solution_file)
+    if not solution_path.exists():
+        raise FileNotFoundError(f"Solution file not found: {solution_file}")
+
+    logger.info(f"Loading solution from: {solution_file}")
+
+    # Load the solution
+    with open(solution_path, 'r') as f:
+        solution_data = json.load(f)
+    solution = deserialize_solution_from_json(solution_data)
+
+    # Build piece templates
+    piece_templates = {
+        "DOODAD": DOODADS,
+        "GIZMO": GIZMOS,
+        "SPROCKET": SPROCKETS,
+    }
+
+    logger.info(f"Analyzing {len(solution.placements)} placements...")
+
+    # Annotate each placement
+    annotated_placements = []
+
+    for idx, (piece_name, placed_shape) in enumerate(solution.placements):
+        # Find which template and rotation matches this placement
+        template_idx, rotation_idx = find_template_and_rotation(
+            placed_shape, piece_templates[piece_name]
+        )
+
+        annotation = {
+            "placement_index": idx,
+            "piece_type": piece_name,
+            "template_index": template_idx,
+            "rotation_index": rotation_idx,
+            "rotation_degrees": rotation_idx * 60,
+            "num_nodes": len(placed_shape.nodes),
+            "nodes": placed_shape.nodes.tolist(),
+        }
+
+        annotated_placements.append(annotation)
+
+        logger.info(
+            f"  Placement {idx}: {piece_name}[{template_idx}] "
+            f"rotation {rotation_idx} ({rotation_idx * 60}°)"
+        )
+
+    # Create annotated solution
+    annotated_solution = {
+        "original_solution_file": str(solution_path),
+        "num_placements": len(solution.placements),
+        "total_cost": solution.total_cost,
+        "coverage": solution.coverage,
+        "annotated_placements": annotated_placements,
+    }
+
+    # Display summary
+    logger.info(f"\n=== Summary ===")
+    logger.info(f"Total placements: {len(solution.placements)}")
+    logger.info(f"Total cost: {solution.total_cost:.2f}")
+    logger.info(f"Coverage: {solution.coverage:.2%}")
+
+    # Count by piece type
+    piece_counts = {}
+    for p in annotated_placements:
+        piece_type = p["piece_type"]
+        piece_counts[piece_type] = piece_counts.get(piece_type, 0) + 1
+
+    logger.info(f"\nPiece counts:")
+    for piece_type, count in sorted(piece_counts.items()):
+        logger.info(f"  {piece_type}: {count}")
+
+    # Count by rotation
+    rotation_counts = {}
+    for p in annotated_placements:
+        rotation = p["rotation_degrees"]
+        rotation_counts[rotation] = rotation_counts.get(rotation, 0) + 1
+
+    logger.info(f"\nRotation distribution:")
+    for rotation, count in sorted(rotation_counts.items()):
+        logger.info(f"  {rotation}°: {count}")
+
+    # Save if output file specified
+    if output_file:
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, 'w') as f:
+            json.dump(annotated_solution, f, indent=2)
+        logger.info(f"\nSaved annotated solution to: {output_file}")
+    else:
+        logger.info(f"\nUse --output to save annotated solution to a file")
+
+
+def find_template_and_rotation(placed_shape: Shape, templates: list[Shape]) -> tuple[int, int]:
+    """
+    Find which template and rotation matches the placed shape.
+
+    Args:
+        placed_shape: The shape from the solution placement
+        templates: List of template shapes to compare against
+
+    Returns:
+        Tuple of (template_index, rotation_index)
+    """
+    placed_nodes = placed_shape.node_set()
+
+    for template_idx, template in enumerate(templates):
+        # Try each rotation of this template
+        rotations = template.rotations()
+        for rotation_idx, rotated in enumerate(rotations):
+            # Check if this rotation matches the placed shape
+            # We need to check if they have the same nodes (after translation)
+            rotated_nodes = rotated.node_set()
+
+            # Find translation offset
+            if len(placed_nodes) != len(rotated_nodes):
+                continue
+
+            # Get first node from each to compute offset
+            if not placed_nodes or not rotated_nodes:
+                continue
+
+            placed_first = min(placed_nodes)
+            rotated_first = min(rotated_nodes)
+            offset = (placed_first[0] - rotated_first[0], placed_first[1] - rotated_first[1])
+
+            # Translate rotated nodes by offset
+            translated_nodes = {
+                (node[0] + offset[0], node[1] + offset[1])
+                for node in rotated_nodes
+            }
+
+            # Check if they match
+            if translated_nodes == placed_nodes:
+                return (template_idx, rotation_idx)
+
+    # If no match found, return (-1, -1)
+    logger.warning(f"Could not find matching template and rotation for placed shape")
+    return (-1, -1)
 
 
 if __name__ == "__main__":
