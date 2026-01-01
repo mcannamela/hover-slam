@@ -356,11 +356,12 @@ class Shape:
         interactive=True,
         labels=None,
         plot_boundary=False,
+        color_jitter=40,
     ):
         """Plot the shape on the given figure"""
         from javelance.plotting import plot_shape, plot_boundary_edges
 
-        color = self.jittered_color()
+        color = self.jittered_color(color_jitter)
         f = plot_shape(
             fig,
             self.nodes,
