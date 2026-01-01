@@ -275,6 +275,8 @@ JAVELANCE_REGIONS = {
     ),  # upper left
 }
 
+SHAPE_COLORS = {"DOODAD": "DarkGreen"}
+
 DOODADS = [
     Shape(
         nodes=np.array(

@@ -41,6 +41,7 @@ def serialize_solution_to_json(solution: PackingSolution) -> dict:
                 "shape": {
                     "nodes": shape.nodes.tolist(),
                     "edges": shape.edges.tolist(),
+                    "mean_color": shape.mean_color,
                 },
             }
         )
@@ -70,6 +71,7 @@ def deserialize_solution_from_json(data: dict) -> PackingSolution:
         shape = Shape(
             nodes=np.array(p["shape"]["nodes"]),
             edges=np.array(p["shape"]["edges"]),
+            mean_color=p["shape"]["mean_color"],
         )
         placements.append((p["name"], shape))
 
@@ -663,6 +665,27 @@ def render_solution(
     output_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Saving PNG files to: {output_dir}")
 
+    # Calculate explicit axis ranges for consistent scaling
+    # Use JAVELANCE_GRID_SHAPE to get the full grid bounds
+    from javelance.javelance import JAVELANCE_GRID_SHAPE
+
+    min_addr, max_addr = JAVELANCE_GRID_SHAPE.bounding_addresses()
+
+    # Calculate coordinate bounds
+    hex_size = 1.0
+    i_offset = np.array([np.sqrt(3) * hex_size, 0])
+    j_offset = np.array([np.sqrt(3) / 2 * hex_size, 3 / 2 * hex_size])
+
+    min_center = min_addr[0] * i_offset + min_addr[1] * j_offset
+    max_center = max_addr[0] * i_offset + max_addr[1] * j_offset
+
+    # Add padding for hexagon radius
+    padding = 1.2 * hex_size
+    x_range = [min_center[0] - padding, max_center[0] + padding]
+    y_range = [min_center[1] - padding, max_center[1] + padding]
+
+    logger.info(f"Using coordinate ranges: X={x_range}, Y={y_range}")
+
     # Get the figure layout parameters from plot_javelance
     # We need to ensure all figures use the same scale
     problem_fig = plot_javelance(targeted_regions)
@@ -670,6 +693,12 @@ def render_solution(
     # Extract layout dimensions to ensure consistency
     fig_width = problem_fig.layout.width
     fig_height = problem_fig.layout.height
+
+    # Set explicit axis ranges on the problem figure
+    problem_fig.update_layout(
+        xaxis=dict(range=x_range, scaleanchor="y", scaleratio=1),
+        yaxis=dict(range=y_range),
+    )
 
     # Save the problem figure
     problem_path = output_dir / "problem.png"
@@ -696,7 +725,8 @@ def render_solution(
         )
 
         # Update layout to match the problem figure
-        # Use transparent background
+        # Use transparent background and explicit axis ranges
+        # Use same margins as problem figure for correct alignment
         fig.update_layout(
             width=fig_width,
             height=fig_height,
@@ -706,19 +736,19 @@ def render_solution(
                 showgrid=False,
                 zeroline=False,
                 visible=False,
-                # Match the range from problem figure
-                range=problem_fig.layout.xaxis.range,
+                # Use the same explicit ranges as problem figure
+                range=x_range,
             ),
             yaxis=dict(
                 showgrid=False,
                 zeroline=False,
                 visible=False,
-                # Match the range from problem figure
-                range=problem_fig.layout.yaxis.range,
+                # Use the same explicit ranges as problem figure
+                range=y_range,
             ),
             plot_bgcolor="rgba(0,0,0,0)",  # Transparent background
             paper_bgcolor="rgba(0,0,0,0)",  # Transparent background
-            margin=dict(l=0, r=0, t=0, b=0),
+            margin=dict(l=20, r=20, t=20, b=20),  # Match problem figure margins
             showlegend=False,
         )
 
