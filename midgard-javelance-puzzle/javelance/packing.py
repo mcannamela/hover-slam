@@ -206,6 +206,7 @@ def heuristic_cost_per_node(
     problem: PackingProblem,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
+    uncovered_node_cost: float = 14.3,
 ) -> np.ndarray:
     """Prioritize pieces with lowest cost per node."""
     priorities = np.array(
@@ -218,6 +219,7 @@ def heuristic_largest_first(
     problem: PackingProblem,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
+    uncovered_node_cost: float = 14.3,
 ) -> np.ndarray:
     """Prioritize largest pieces first."""
     priorities = np.array([-num_nodes for _, _, _, num_nodes in all_candidates])
@@ -228,6 +230,7 @@ def heuristic_cheapest_first(
     problem: PackingProblem,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
+    uncovered_node_cost: float = 14.3,
 ) -> np.ndarray:
     """Prioritize cheapest pieces first."""
     priorities = np.array([cost for _, _, cost, _ in all_candidates])
@@ -458,7 +461,9 @@ def greedy_pack(
                 valid_candidates.append((name, placement, cost, num_nodes))
 
     if not recompute_heuristic:
-        placements = _greedy_pack_once(heuristic_fn, problem, valid_candidates, heuristic_kwargs)
+        placements = _greedy_pack_once(
+            heuristic_fn, problem, valid_candidates, heuristic_kwargs
+        )
     else:
         placements = _greedy_pack_iter(
             heuristic_fn, problem, selector_fn, valid_candidates, heuristic_kwargs
@@ -503,7 +508,9 @@ def _greedy_pack_iter(
             break
 
         # Compute priorities for all candidates (heuristic may need full context)
-        priorities = heuristic_fn(problem, occupied_nodes, valid_candidates, **heuristic_kwargs)
+        priorities = heuristic_fn(
+            problem, occupied_nodes, valid_candidates, **heuristic_kwargs
+        )
 
         # Extract valid prioritized candidates
         prioritized_candidates: list[PrioritizedCandidate] = [
@@ -546,7 +553,9 @@ def _greedy_pack_once(
     # Compute priorities once upfront for efficiency
     with log_elapsed("compute_priorities_once"):
         logger.info(f"There are {len(valid_candidates)} candidate placements.")
-        priorities = heuristic_fn(problem, occupied_nodes, valid_candidates, **heuristic_kwargs)
+        priorities = heuristic_fn(
+            problem, occupied_nodes, valid_candidates, **heuristic_kwargs
+        )
 
     # Zip priorities with candidates
     prioritized_all: list[PrioritizedCandidate] = [

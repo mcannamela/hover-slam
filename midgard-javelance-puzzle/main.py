@@ -87,7 +87,7 @@ def deserialize_solution_from_json(data: dict) -> PackingSolution:
 
 
 @app.command()
-def main(
+def pack_javelance(
     show_plots: bool = typer.Option(
         False,
         "--show-plots/--no-show-plots",
@@ -168,7 +168,9 @@ def main(
     costs_file = output_dir / "costs.json"
     with open(costs_file, "w") as f:
         json.dump(costs_info, f, indent=2)
-    logger.info(f"Costs: DOODAD={doodad_cost}, GIZMO={gizmo_cost}, SPROCKET={sprocket_cost}, EMPTY_HEX={empty_hex_cost}")
+    logger.info(
+        f"Costs: DOODAD={doodad_cost}, GIZMO={gizmo_cost}, SPROCKET={sprocket_cost}, EMPTY_HEX={empty_hex_cost}"
+    )
     logger.info(f"Saved costs to: {costs_file}")
 
     # Set up the packing problem
@@ -276,7 +278,7 @@ def main(
         logger.info("\n=== Testing different greedy strategies ===")
 
         for strategy, kwargs in [
-            # ("largest_first", {}),
+            ("largest_first", {}),
             ("expected_coverage_cost", {"recompute_heuristic": True}),
             ("expected_coverage_cost_lookahead", {"recompute_heuristic": True}),
         ]:
@@ -384,14 +386,10 @@ def main(
 @app.command()
 def analyze_solution(
     solution_file: str = typer.Argument(
-        ...,
-        help="Path to solution JSON file to analyze"
+        ..., help="Path to solution JSON file to analyze"
     ),
     output_file: str = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Output file for annotated solution (JSON format)"
+        None, "--output", "-o", help="Output file for annotated solution (JSON format)"
     ),
 ):
     """
@@ -408,7 +406,7 @@ def analyze_solution(
     logger.info(f"Loading solution from: {solution_file}")
 
     # Load the solution
-    with open(solution_path, 'r') as f:
+    with open(solution_path, "r") as f:
         solution_data = json.load(f)
     solution = deserialize_solution_from_json(solution_data)
 
@@ -486,14 +484,16 @@ def analyze_solution(
     if output_file:
         output_path = Path(output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(annotated_solution, f, indent=2)
         logger.info(f"\nSaved annotated solution to: {output_file}")
     else:
         logger.info(f"\nUse --output to save annotated solution to a file")
 
 
-def find_template_and_rotation(placed_shape: Shape, templates: list[Shape]) -> tuple[int, int]:
+def find_template_and_rotation(
+    placed_shape: Shape, templates: list[Shape]
+) -> tuple[int, int]:
     """
     Find which template and rotation matches the placed shape.
 
@@ -524,12 +524,14 @@ def find_template_and_rotation(placed_shape: Shape, templates: list[Shape]) -> t
 
             placed_first = min(placed_nodes)
             rotated_first = min(rotated_nodes)
-            offset = (placed_first[0] - rotated_first[0], placed_first[1] - rotated_first[1])
+            offset = (
+                placed_first[0] - rotated_first[0],
+                placed_first[1] - rotated_first[1],
+            )
 
             # Translate rotated nodes by offset
             translated_nodes = {
-                (node[0] + offset[0], node[1] + offset[1])
-                for node in rotated_nodes
+                (node[0] + offset[0], node[1] + offset[1]) for node in rotated_nodes
             }
 
             # Check if they match
