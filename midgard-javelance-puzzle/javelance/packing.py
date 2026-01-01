@@ -75,20 +75,16 @@ class PackingProblem:
     forbidden_edges: set[Shape.Edge]  # Edges that cannot be used
     allowed: Shape | None = None  # Additional nodes that may be covered (optional)
 
-    @lru_cache
-    def admissible_edges(self) -> set[Shape.Edge]:
+    def __post_init__(self):
         s = self.target.union(self.allowed) if self.allowed is not None else self.target
-        return s.interior_edges() | s.boundary_edges()
+        self._admissible_edges = s.interior_edges() | s.boundary_edges()
+        self._admissible_nodes = s.node_set()
 
-    @lru_cache
     def admissible_nodes(self) -> set[tuple[int, int]]:
-        # Compute allowed nodes (target ∪ allowed)
-        target_nodes = self.target.node_set()
-        if self.allowed is not None:
-            admissible_nodes = target_nodes | self.allowed.node_set()
-        else:
-            admissible_nodes = target_nodes
-        return admissible_nodes
+        return self._admissible_nodes
+
+    def admissible_edges(self) -> set[tuple[int, int]]:
+        return self._admissible_edges
 
     def is_valid_placement(self, shape: Shape, occupied_nodes: set[Shape.Node]) -> bool:
         """
