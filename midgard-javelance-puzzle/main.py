@@ -417,7 +417,23 @@ def analyze_solution(
         "SPROCKET": SPROCKETS,
     }
 
+    # Create region node sets for overlap analysis
+    region_node_sets = {idx: region.node_set() for idx, region in JAVELANCE_REGIONS.items()}
+
+    # Determine which regions are targeted based on solution.target_nodes
+    targeted_region_indices = []
+    for idx, region_nodes in region_node_sets.items():
+        if region_nodes.issubset(solution.target_nodes):
+            targeted_region_indices.append(idx)
+
     logger.info(f"Analyzing {len(solution.placements)} placements...")
+    logger.info(f"Targeted regions: {targeted_region_indices}")
+
+    # Track region coverage stats
+    pieces_per_region = {idx: [] for idx in JAVELANCE_REGIONS.keys()}
+
+    # Track overflow nodes (placed but not in target)
+    all_placed_nodes = set()
 
     # Annotate each placement
     annotated_placements = []
@@ -428,6 +444,24 @@ def analyze_solution(
             placed_shape, piece_templates[piece_name]
         )
 
+        # Analyze which regions this piece overlaps with
+        placed_nodes = placed_shape.node_set()
+        all_placed_nodes.update(placed_nodes)
+
+        region_overlaps = {}
+        for region_idx, region_nodes in region_node_sets.items():
+            overlap = placed_nodes & region_nodes
+            if overlap:
+                is_targeted = region_idx in targeted_region_indices
+                region_overlaps[region_idx] = {
+                    "num_nodes": len(overlap),
+                    "is_targeted": is_targeted,
+                }
+                pieces_per_region[region_idx].append(idx)
+
+        # Count overflow nodes for this piece
+        overflow_nodes = placed_nodes - solution.target_nodes
+
         annotation = {
             "placement_index": idx,
             "piece_type": piece_name,
@@ -436,21 +470,40 @@ def analyze_solution(
             "rotation_degrees": rotation_idx * 60,
             "num_nodes": len(placed_shape.nodes),
             "nodes": placed_shape.nodes.tolist(),
+            "region_overlaps": region_overlaps,
+            "num_overflow_nodes": len(overflow_nodes),
         }
 
         annotated_placements.append(annotation)
 
+        # Log placement details
+        region_info = ", ".join(
+            f"R{r_idx}:{info['num_nodes']}{'*' if info['is_targeted'] else ''}"
+            for r_idx, info in sorted(region_overlaps.items())
+        )
+        overflow_str = f", overflow:{len(overflow_nodes)}" if overflow_nodes else ""
         logger.info(
             f"  Placement {idx}: {piece_name}[{template_idx}] "
-            f"rotation {rotation_idx} ({rotation_idx * 60}°)"
+            f"rotation {rotation_idx} ({rotation_idx * 60}°) - [{region_info}{overflow_str}]"
         )
+
+    # Calculate total overflow
+    total_overflow_nodes = all_placed_nodes - solution.target_nodes
 
     # Create annotated solution
     annotated_solution = {
         "original_solution_file": str(solution_path),
         "num_placements": len(solution.placements),
         "total_cost": solution.total_cost,
+        "total_target_nodes": len(solution.target_nodes),
         "coverage": solution.coverage,
+        "targeted_regions": targeted_region_indices,
+        "total_overflow_nodes": len(total_overflow_nodes),
+        "pieces_per_region": {
+            str(region_idx): len(piece_indices)
+            for region_idx, piece_indices in pieces_per_region.items()
+            if piece_indices
+        },
         "annotated_placements": annotated_placements,
     }
 
@@ -458,7 +511,9 @@ def analyze_solution(
     logger.info(f"\n=== Summary ===")
     logger.info(f"Total placements: {len(solution.placements)}")
     logger.info(f"Total cost: {solution.total_cost:.2f}")
+    logger.info(f"Total target nodes: {len(solution.target_nodes)}")
     logger.info(f"Coverage: {solution.coverage:.2%}")
+    logger.info(f"Total overflow nodes: {len(total_overflow_nodes)}")
 
     # Count by piece type
     piece_counts = {}
@@ -479,6 +534,18 @@ def analyze_solution(
     logger.info(f"\nRotation distribution:")
     for rotation, count in sorted(rotation_counts.items()):
         logger.info(f"  {rotation}°: {count}")
+
+    # Display region coverage statistics
+    logger.info(f"\n=== Region Coverage ===")
+    logger.info(f"Targeted regions: {targeted_region_indices}")
+    for region_idx in sorted(JAVELANCE_REGIONS.keys()):
+        piece_indices = pieces_per_region[region_idx]
+        if piece_indices:
+            is_targeted = region_idx in targeted_region_indices
+            status = "TARGETED" if is_targeted else "overflow"
+            logger.info(
+                f"  Region {region_idx} ({status}): {len(piece_indices)} pieces covering it"
+            )
 
     # Save if output file specified
     if output_file:
