@@ -5,6 +5,8 @@ import math
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
+from functools import lru_cache
+from socket import send_fds
 from typing import Callable, Self, Any
 
 import numpy as np
@@ -73,6 +75,21 @@ class PackingProblem:
     forbidden_edges: set[Shape.Edge]  # Edges that cannot be used
     allowed: Shape | None = None  # Additional nodes that may be covered (optional)
 
+    @lru_cache
+    def admissible_edges(self) -> set[Shape.Edge]:
+        s = self.target.union(self.allowed) if self.allowed is not None else self.target
+        return s.interior_edges() | s.boundary_edges()
+
+    @lru_cache
+    def admissible_nodes(self) -> set[tuple[int, int]]:
+        # Compute allowed nodes (target ∪ allowed)
+        target_nodes = self.target.node_set()
+        if self.allowed is not None:
+            admissible_nodes = target_nodes | self.allowed.node_set()
+        else:
+            admissible_nodes = target_nodes
+        return admissible_nodes
+
     def is_valid_placement(self, shape: Shape, occupied_nodes: set[Shape.Node]) -> bool:
         """
         Check if a shape placement is valid.
@@ -84,20 +101,18 @@ class PackingProblem:
         4. No edges are in the forbidden edge set
         """
         shape_nodes = shape.node_set()
-        target_nodes = self.target.node_set()
+        admissible_edges = self.admissible_edges()
 
-        # Compute allowed nodes (target ∪ allowed)
-        if self.allowed is not None:
-            allowed_nodes = target_nodes | self.allowed.node_set()
-        else:
-            allowed_nodes = target_nodes
+        admissible_nodes = self.admissible_nodes()
+
+        target_nodes = self.target.node_set()
 
         # Check if at least one node is in target
         if not (shape_nodes & target_nodes):
             return False
 
         # Check if all nodes are in allowed region (target ∪ allowed)
-        if not shape_nodes <= allowed_nodes:
+        if not shape_nodes <= admissible_nodes:
             return False
 
         # Check for overlaps with occupied nodes
@@ -106,7 +121,10 @@ class PackingProblem:
 
         # Check if any edges are forbidden
         shape_edges = shape.edge_set()
-        if shape_edges & self.forbidden_edges:
+        if (
+            bool(shape_edges & self.forbidden_edges)
+            or not shape_edges <= admissible_edges
+        ):
             return False
 
         return True
