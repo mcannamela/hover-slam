@@ -23,7 +23,7 @@ from javelance.packing import (
     get_array_combinations,
     greedy_pack,
 )
-from javelance.plotting import plot_packing_solution
+from javelance.plotting import plot_packing_solution, plot_javelance
 from javelance.schemas import PackingResultsSchema
 from javelance.shapes import Shape, union_shapes
 
@@ -610,6 +610,153 @@ def find_template_and_rotation(
     # If no match found, return (-1, -1)
     logger.warning(f"Could not find matching template and rotation for placed shape")
     return (-1, -1)
+
+
+@app.command()
+def render_solution(
+    solution_file: str = typer.Argument(
+        ..., help="Path to solution JSON file to render"
+    ),
+    output_dir: str = typer.Option(
+        None, "--output-dir", "-o", help="Output directory for PNG files"
+    ),
+):
+    """
+    Render a solution as PNG files for problem and individual placements.
+
+    Creates:
+    - problem.png: The targeted regions
+    - placement_000.png, placement_001.png, etc.: Individual pieces with labels
+
+    All PNGs are rendered at the same scale for proper overlay.
+    """
+    solution_path = Path(solution_file)
+    if not solution_path.exists():
+        raise FileNotFoundError(f"Solution file not found: {solution_file}")
+
+    logger.info(f"Loading solution from: {solution_file}")
+
+    # Load the solution
+    with open(solution_path, "r") as f:
+        solution_data = json.load(f)
+    solution = deserialize_solution_from_json(solution_data)
+
+    # Create region node sets for overlap analysis
+    region_node_sets = {
+        idx: region.node_set() for idx, region in JAVELANCE_REGIONS.items()
+    }
+
+    # Determine which regions are targeted based on solution.target_nodes
+    targeted_region_indices = []
+    for idx, region_nodes in region_node_sets.items():
+        if region_nodes.issubset(solution.target_nodes):
+            targeted_region_indices.append(idx)
+
+    targeted_regions = [JAVELANCE_REGIONS[i] for i in targeted_region_indices]
+
+    # Set up output directory
+    if output_dir is None:
+        output_dir = solution_path.parent / f"{solution_path.stem}_pngs"
+    else:
+        output_dir = Path(output_dir)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Saving PNG files to: {output_dir}")
+
+    # Get the figure layout parameters from plot_javelance
+    # We need to ensure all figures use the same scale
+    problem_fig = plot_javelance(targeted_regions)
+
+    # Extract layout dimensions to ensure consistency
+    fig_width = problem_fig.layout.width
+    fig_height = problem_fig.layout.height
+
+    # Save the problem figure
+    problem_path = output_dir / "problem.png"
+    logger.info(f"Rendering problem to: {problem_path}")
+    problem_fig.write_image(str(problem_path))
+
+    # Render each placement as a separate PNG with transparent background
+    logger.info(f"Rendering {len(solution.placements)} placements...")
+    for i, (name, shape) in enumerate(solution.placements):
+        placement_path = output_dir / f"placement_{i:03d}.png"
+
+        # Create a figure with the same dimensions and scale
+        import plotly.graph_objects as go
+
+        fig = go.Figure()
+
+        # Plot the shape with its label
+        shape.plot(
+            fig,
+            alpha=0.8,
+            inset_ratio=0.6,
+            jitter=0.1,
+            labels=lambda i_, j_: f"{i}",
+        )
+
+        # Update layout to match the problem figure
+        # Use transparent background
+        fig.update_layout(
+            width=fig_width,
+            height=fig_height,
+            xaxis=dict(
+                scaleanchor="y",
+                scaleratio=1,
+                showgrid=False,
+                zeroline=False,
+                visible=False,
+                # Match the range from problem figure
+                range=problem_fig.layout.xaxis.range,
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                visible=False,
+                # Match the range from problem figure
+                range=problem_fig.layout.yaxis.range,
+            ),
+            plot_bgcolor="rgba(0,0,0,0)",  # Transparent background
+            paper_bgcolor="rgba(0,0,0,0)",  # Transparent background
+            margin=dict(l=0, r=0, t=0, b=0),
+            showlegend=False,
+        )
+
+        # Save as PNG with transparent background
+        fig.write_image(str(placement_path))
+
+        if (i + 1) % 10 == 0:
+            logger.info(f"  Rendered {i + 1}/{len(solution.placements)} placements")
+
+    logger.info("Creating composite solution image...")
+
+    # Create composite by overlaying all placements on the problem
+    from PIL import Image
+
+    # Load the problem image
+    problem_img = Image.open(str(problem_path))
+    composite = problem_img.copy()
+
+    # Overlay each placement
+    for i in range(len(solution.placements)):
+        placement_path = output_dir / f"placement_{i:03d}.png"
+        placement_img = Image.open(str(placement_path))
+
+        # Paste with alpha transparency
+        composite.paste(placement_img, (0, 0), placement_img)
+
+    # Save the composite
+    composite_path = output_dir / "composite.png"
+    composite.save(str(composite_path))
+    logger.info(f"Saved composite to: {composite_path}")
+
+    logger.info(
+        f"\n=== Rendering complete ===\n"
+        f"Problem: {problem_path}\n"
+        f"Placements: {len(solution.placements)} PNG files\n"
+        f"Composite: {composite_path}\n"
+        f"Output directory: {output_dir}"
+    )
 
 
 if __name__ == "__main__":
