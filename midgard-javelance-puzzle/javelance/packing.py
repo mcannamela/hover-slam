@@ -147,10 +147,6 @@ class PackingProblem:
 
         # For each rotation, try all possible translations
         for rotated in unique_rotations:
-            rot_min, rot_max = rotated.bounding_addresses()
-            shape_width = rot_max[0] - rot_min[0]
-            shape_height = rot_max[1] - rot_min[1]
-
             # Try all positions where the shape could fit
             for i in range(search_min[0], search_max[0] + 2):
                 for j in range(search_min[1], search_max[1] + 2):
