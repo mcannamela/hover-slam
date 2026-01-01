@@ -113,6 +113,26 @@ def main(
         "--sort-by-previous",
         help="Path to previous summary_results.parquet to sort combinations by cost",
     ),
+    doodad_cost: float = typer.Option(
+        1.0,
+        "--doodad-cost",
+        help="Cost per DOODAD piece",
+    ),
+    gizmo_cost: float = typer.Option(
+        5.4,
+        "--gizmo-cost",
+        help="Cost per GIZMO piece",
+    ),
+    sprocket_cost: float = typer.Option(
+        9.9,
+        "--sprocket-cost",
+        help="Cost per SPROCKET piece",
+    ),
+    empty_hex_cost: float = typer.Option(
+        14.3,
+        "--empty-hex-cost",
+        help="Cost per uncovered target node (empty hex)",
+    ),
 ):
     """
     Solve packing problems for different region combinations.
@@ -138,14 +158,27 @@ def main(
     output_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Saving results to: {output_dir}")
 
+    # Log costs to file
+    costs_info = {
+        "doodad_cost": doodad_cost,
+        "gizmo_cost": gizmo_cost,
+        "sprocket_cost": sprocket_cost,
+        "empty_hex_cost": empty_hex_cost,
+    }
+    costs_file = output_dir / "costs.json"
+    with open(costs_file, "w") as f:
+        json.dump(costs_info, f, indent=2)
+    logger.info(f"Costs: DOODAD={doodad_cost}, GIZMO={gizmo_cost}, SPROCKET={sprocket_cost}, EMPTY_HEX={empty_hex_cost}")
+    logger.info(f"Saved costs to: {costs_file}")
+
     # Set up the packing problem
     pieces = []
     for doodad in DOODADS:
-        pieces.append(("DOODAD", doodad, 1.0))
+        pieces.append(("DOODAD", doodad, doodad_cost))
     for gizmo in GIZMOS:
-        pieces.append(("GIZMO", gizmo, 5.4))
+        pieces.append(("GIZMO", gizmo, gizmo_cost))
     for sprocket in SPROCKETS:
-        pieces.append(("SPROCKET", sprocket, 9.9))
+        pieces.append(("SPROCKET", sprocket, sprocket_cost))
 
     # Track all results for summary dataframe
     summary_results = []
@@ -247,7 +280,11 @@ def main(
             ("expected_coverage_cost", {"recompute_heuristic": True}),
             ("expected_coverage_cost_lookahead", {"recompute_heuristic": True}),
         ]:
-            solution = greedy_pack(problem, strategy=strategy, **kwargs)
+            # Add empty_hex_cost to heuristic_kwargs
+            heuristic_kwargs = {"uncovered_node_cost": empty_hex_cost}
+            solution = greedy_pack(
+                problem, strategy=strategy, heuristic_kwargs=heuristic_kwargs, **kwargs
+            )
 
             logger.info(f"\nStrategy: {strategy}")
             logger.info(f"  Coverage: {solution.coverage:.2%}")
