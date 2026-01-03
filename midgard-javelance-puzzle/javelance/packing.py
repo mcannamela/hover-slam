@@ -605,6 +605,27 @@ def _greedy_pack_once(
 # ============================================================================
 
 
+def _shape_to_key(shape: Shape) -> tuple:
+    """
+    Create a hashable key from a Shape for use in dictionaries.
+
+    Args:
+        shape: Shape to convert to key
+
+    Returns:
+        Hashable tuple representing the shape
+    """
+    # Convert nodes to frozenset of tuples
+    nodes_key = frozenset(tuple(node) for node in shape.nodes)
+
+    # Convert edges to frozenset of tuples of tuples
+    edges_key = frozenset(
+        (tuple(edge[0]), tuple(edge[1])) for edge in shape.edges
+    )
+
+    return (nodes_key, edges_key)
+
+
 @dataclass
 class PlacementIntersections:
     """Data structures for analyzing placement overlaps and intersections."""
@@ -622,6 +643,9 @@ class PlacementIntersections:
 
     # For each node, the set of placement indices that cover it
     node_to_placements: dict[Shape.Node, set[int]]
+
+    # Map from shape to its index in the placements list
+    shape_to_index: dict[tuple, int]
 
 
 def build_placement_intersections(
@@ -642,9 +666,15 @@ def build_placement_intersections(
     intersection_nodes: dict[tuple[int, int], set[Shape.Node]] = {}
     intersection_counts: dict[tuple[int, int], int] = {}
     node_to_placements: dict[Shape.Node, set[int]] = {}
+    shape_to_index: dict[tuple, int] = {}
 
-    # Build node_to_placements map
+    # Build node_to_placements and shape_to_index maps
     for idx, (name, shape, cost) in enumerate(placements):
+        # Map shape to index
+        shape_key = _shape_to_key(shape)
+        shape_to_index[shape_key] = idx
+
+        # Map nodes to placements
         for node in shape.node_set():
             if node not in node_to_placements:
                 node_to_placements[node] = set()
@@ -677,6 +707,7 @@ def build_placement_intersections(
         intersection_nodes=intersection_nodes,
         intersection_counts=intersection_counts,
         node_to_placements=node_to_placements,
+        shape_to_index=shape_to_index,
     )
 
 
@@ -701,18 +732,45 @@ def iterative_improvement_pack(
     Returns:
         Improved PackingSolution
     """
-    placements = list(initial_placements)
+    # Generate all possible valid placements for all piece types
+    logger.info("Generating all possible placements...")
+    all_placements: list[tuple[str, Shape, float]] = []
 
-    # Build intersection data structures
-    intersections = build_placement_intersections(placements)
+    with log_elapsed("generate_all_placements"):
+        for name, shape, cost in problem.pieces:
+            piece_placements = problem.generate_all_placements(shape)
+            for placement in piece_placements:
+                all_placements.append((name, placement, cost))
 
-    logger.info(f"Starting iterative improvement with {len(placements)} placements")
+    logger.info(f"Generated {len(all_placements)} total possible placements")
+
+    # Build intersection data structures on ALL possible placements
+    logger.info("Building intersection data structures...")
+    with log_elapsed("build_intersections"):
+        intersections = build_placement_intersections(all_placements)
+
     logger.info(
-        f"Found {len(intersections.intersection_nodes)} pairs of intersecting placements"
+        f"Found {len(intersections.intersection_nodes) // 2} pairs of intersecting placements"
+    )
+
+    # Convert initial placements to indices in all_placements
+    current_solution_indices: set[int] = set()
+    for name, shape, cost in initial_placements:
+        shape_key = _shape_to_key(shape)
+        if shape_key in intersections.shape_to_index:
+            idx = intersections.shape_to_index[shape_key]
+            current_solution_indices.add(idx)
+        else:
+            logger.warning(
+                f"Initial placement shape not found in all_placements: {shape_key}"
+            )
+
+    logger.info(
+        f"Starting iterative improvement with {len(current_solution_indices)} placements"
     )
 
     # TODO: Implement improvement logic
     # For now, just return the initial solution
 
     target_nodes = problem.target.node_set()
-    return PackingSolution.from_placements(placements, target_nodes)
+    return PackingSolution.from_placements(initial_placements, target_nodes)
