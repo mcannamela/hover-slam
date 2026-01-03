@@ -68,10 +68,12 @@ def deserialize_solution_from_json(data: dict) -> PackingSolution:
     # Deserialize placements
     placements = []
     for p in data["placements"]:
+        # mean_color is optional (for backward compatibility)
+        mean_color = p["shape"].get("mean_color", "rgb(100, 100, 100)")
         shape = Shape(
             nodes=np.array(p["shape"]["nodes"]),
             edges=np.array(p["shape"]["edges"]),
-            mean_color=p["shape"]["mean_color"],
+            mean_color=mean_color,
         )
         placements.append((p["name"], shape))
 
@@ -780,12 +782,76 @@ def render_solution(
     composite.save(str(composite_path))
     logger.info(f"Saved composite to: {composite_path}")
 
+    # Crop all images to eliminate extra whitespace/transparency
+    logger.info("Cropping images to content bounds...")
+
+    # Find bounding box from composite (has all content)
+    composite_array = np.array(composite)
+
+    # For RGBA images, find non-transparent pixels
+    # For the composite, we want to find where there's actual content
+    if composite.mode == "RGBA":
+        # Get alpha channel
+        alpha = composite_array[:, :, 3]
+        # Find rows and columns with non-zero alpha
+        rows = np.any(alpha > 0, axis=1)
+        cols = np.any(alpha > 0, axis=0)
+    else:
+        # For RGB, find non-white pixels
+        is_white = np.all(composite_array == 255, axis=2)
+        rows = np.any(~is_white, axis=1)
+        cols = np.any(~is_white, axis=0)
+
+    # Get bounding box
+    row_indices = np.where(rows)[0]
+    col_indices = np.where(cols)[0]
+
+    if len(row_indices) > 0 and len(col_indices) > 0:
+        y_min, y_max = row_indices[0], row_indices[-1]
+        x_min, x_max = col_indices[0], col_indices[-1]
+
+        # Add small padding
+        padding = 10
+        y_min = max(0, y_min - padding)
+        y_max = min(composite.height - 1, y_max + padding)
+        x_min = max(0, x_min - padding)
+        x_max = min(composite.width - 1, x_max + padding)
+
+        crop_box = (x_min, y_min, x_max + 1, y_max + 1)
+        logger.info(f"  Crop box: x=[{x_min}, {x_max}], y=[{y_min}, {y_max}]")
+        logger.info(
+            f"  Original size: {composite.width}x{composite.height}, "
+            f"Cropped size: {x_max-x_min+1}x{y_max-y_min+1}"
+        )
+
+        # Crop the composite
+        composite_cropped = composite.crop(crop_box)
+        composite_cropped.save(str(composite_path))
+        logger.info(f"  Cropped composite")
+
+        # Crop the problem
+        problem_cropped = problem_img.crop(crop_box)
+        problem_cropped.save(str(problem_path))
+        logger.info(f"  Cropped problem")
+
+        # Crop all placements
+        for i in range(len(solution.placements)):
+            placement_path_crop = output_dir / f"placement_{i:03d}.png"
+            placement_img = Image.open(str(placement_path_crop))
+            placement_cropped = placement_img.crop(crop_box)
+            placement_cropped.save(str(placement_path_crop))
+
+        logger.info(f"  Cropped {len(solution.placements)} placement images")
+    else:
+        logger.warning("Could not determine crop box - no content found")
+
     logger.info(
         f"\n=== Rendering complete ===\n"
         f"Problem: {problem_path}\n"
         f"Placements: {len(solution.placements)} PNG files\n"
         f"Composite: {composite_path}\n"
-        f"Output directory: {output_dir}"
+        f"Output directory: {output_dir}\n"
+        f"All images cropped to content bounds"
     )
 
 
