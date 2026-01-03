@@ -598,3 +598,121 @@ def _greedy_pack_once(
                 placements.append((name, placement, cost))
                 occupied_nodes |= placement.node_set()
     return placements
+
+
+# ============================================================================
+# Iterative Improvement
+# ============================================================================
+
+
+@dataclass
+class PlacementIntersections:
+    """Data structures for analyzing placement overlaps and intersections."""
+
+    # For each placement index, set of other placement indices it intersects with
+    intersecting_placements: dict[int, set[int]]
+
+    # For each pair of intersecting placements (i, j), the set of nodes in intersection
+    # Both (i, j) and (j, i) are stored for easy lookup
+    intersection_nodes: dict[tuple[int, int], set[Shape.Node]]
+
+    # For each pair of intersecting placements (i, j), the count of nodes
+    # Both (i, j) and (j, i) are stored for easy lookup
+    intersection_counts: dict[tuple[int, int], int]
+
+    # For each node, the set of placement indices that cover it
+    node_to_placements: dict[Shape.Node, set[int]]
+
+
+def build_placement_intersections(
+    placements: list[tuple[str, Shape, float]]
+) -> PlacementIntersections:
+    """
+    Build data structures for analyzing placement overlaps.
+
+    Args:
+        placements: List of (name, shape, cost) tuples
+
+    Returns:
+        PlacementIntersections with all intersection information
+    """
+    n = len(placements)
+
+    intersecting_placements: dict[int, set[int]] = {i: set() for i in range(n)}
+    intersection_nodes: dict[tuple[int, int], set[Shape.Node]] = {}
+    intersection_counts: dict[tuple[int, int], int] = {}
+    node_to_placements: dict[Shape.Node, set[int]] = {}
+
+    # Build node_to_placements map
+    for idx, (name, shape, cost) in enumerate(placements):
+        for node in shape.node_set():
+            if node not in node_to_placements:
+                node_to_placements[node] = set()
+            node_to_placements[node].add(idx)
+
+    # Build intersection information
+    for i in range(n):
+        nodes_i = placements[i][1].node_set()
+
+        for j in range(i + 1, n):
+            nodes_j = placements[j][1].node_set()
+
+            # Find intersection
+            intersection = nodes_i & nodes_j
+
+            if intersection:
+                # Record that these placements intersect
+                intersecting_placements[i].add(j)
+                intersecting_placements[j].add(i)
+
+                # Store intersection details for both orderings
+                intersection_nodes[(i, j)] = intersection
+                intersection_nodes[(j, i)] = intersection
+                count = len(intersection)
+                intersection_counts[(i, j)] = count
+                intersection_counts[(j, i)] = count
+
+    return PlacementIntersections(
+        intersecting_placements=intersecting_placements,
+        intersection_nodes=intersection_nodes,
+        intersection_counts=intersection_counts,
+        node_to_placements=node_to_placements,
+    )
+
+
+def iterative_improvement_pack(
+    problem: PackingProblem,
+    initial_placements: list[tuple[str, Shape, float]],
+    max_iterations: int = 100,
+) -> PackingSolution:
+    """
+    Iteratively improve a packing solution by finding better placements.
+
+    This function takes an initial solution and attempts to improve it by:
+    1. Identifying placements that overlap (share nodes)
+    2. Attempting to replace overlapping placements with better alternatives
+    3. Continuing until no improvements can be found
+
+    Args:
+        problem: The packing problem to solve
+        initial_placements: Initial placements to start from (name, shape, cost)
+        max_iterations: Maximum number of improvement iterations
+
+    Returns:
+        Improved PackingSolution
+    """
+    placements = list(initial_placements)
+
+    # Build intersection data structures
+    intersections = build_placement_intersections(placements)
+
+    logger.info(f"Starting iterative improvement with {len(placements)} placements")
+    logger.info(
+        f"Found {len(intersections.intersection_nodes)} pairs of intersecting placements"
+    )
+
+    # TODO: Implement improvement logic
+    # For now, just return the initial solution
+
+    target_nodes = problem.target.node_set()
+    return PackingSolution.from_placements(placements, target_nodes)
