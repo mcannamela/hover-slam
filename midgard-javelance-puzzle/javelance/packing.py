@@ -74,6 +74,7 @@ class PackingProblem:
     pieces: list[tuple[str, Shape, float]]  # (name, shape, cost) for each piece type
     forbidden_edges: set[Shape.Edge]  # Edges that cannot be used
     allowed: Shape | None = None  # Additional nodes that may be covered (optional)
+    uncovered_node_cost: float = 14.3  # Cost per uncovered target node
 
     def __post_init__(self):
         s = self.target.union(self.allowed) if self.allowed is not None else self.target
@@ -216,7 +217,6 @@ def heuristic_cost_per_node(
     problem: PackingProblem,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
-    uncovered_node_cost: float = 14.3,
 ) -> np.ndarray:
     """Prioritize pieces with lowest cost per node."""
     priorities = np.array(
@@ -229,7 +229,6 @@ def heuristic_largest_first(
     problem: PackingProblem,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
-    uncovered_node_cost: float = 14.3,
 ) -> np.ndarray:
     """Prioritize largest pieces first."""
     priorities = np.array([-num_nodes for _, _, _, num_nodes in all_candidates])
@@ -240,7 +239,6 @@ def heuristic_cheapest_first(
     problem: PackingProblem,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
-    uncovered_node_cost: float = 14.3,
 ) -> np.ndarray:
     """Prioritize cheapest pieces first."""
     priorities = np.array([cost for _, _, cost, _ in all_candidates])
@@ -251,7 +249,6 @@ def heuristic_expected_coverage_cost(
     problem: PackingProblem,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
-    uncovered_node_cost: float = 14.3,
 ) -> np.ndarray:
     """
     Prioritize low-cost placements covering nodes with high expected coverage cost.
@@ -270,7 +267,7 @@ def heuristic_expected_coverage_cost(
             continue
 
         # An uncovered node has some base cost
-        total_cost = uncovered_node_cost
+        total_cost = problem.uncovered_node_cost
         total_coverage = 1.0
 
         # Find all placements that cover this node
@@ -309,7 +306,6 @@ def heuristic_expected_coverage_cost_lookahead(
     problem: PackingProblem,
     occupied_nodes: set[Shape.Node],
     all_candidates: list[Candidate],
-    uncovered_node_cost: float = 14.3,
     num_lookahead: int = 10,
 ) -> np.ndarray:
     """
@@ -325,7 +321,7 @@ def heuristic_expected_coverage_cost_lookahead(
     """
     # Step 1: Compute initial priorities using expected_coverage_cost logic
     priorities = heuristic_expected_coverage_cost(
-        problem, occupied_nodes, all_candidates, uncovered_node_cost
+        problem, occupied_nodes, all_candidates
     )
 
     # Step 2: Identify top candidates (lowest priorities)
@@ -361,7 +357,7 @@ def heuristic_expected_coverage_cost_lookahead(
         # Recompute heuristic for remaining candidates
         if remaining_candidates:
             recomputed_priorities = heuristic_expected_coverage_cost(
-                problem, simulated_occupied, remaining_candidates, uncovered_node_cost
+                problem, simulated_occupied, remaining_candidates
             )
             min_recomputed = np.min(recomputed_priorities)
         else:
@@ -421,7 +417,6 @@ def greedy_pack(
     heuristic_fn: HeuristicFn | None = None,
     selector_fn: SelectorFn | None = None,
     recompute_heuristic: bool = False,
-    heuristic_kwargs: dict | None = None,
 ) -> PackingSolution:
     """
     Pack shapes using a greedy algorithm with customizable heuristics.
@@ -439,15 +434,11 @@ def greedy_pack(
             If False (default), compute all priorities once upfront. This is much more
             efficient but less adaptive to changing board states. Only use True for
             heuristics that need to adapt to occupied nodes.
-        heuristic_kwargs: Optional dictionary of keyword arguments to pass to the
-            heuristic function (e.g., {"uncovered_node_cost": 14.3}).
 
     Returns:
         A PackingSolution with the greedy packing result
     """
     initial_placements = initial_placements or []
-    if heuristic_kwargs is None:
-        heuristic_kwargs = {}
     # Resolve the heuristic function
     if strategy is not None:
         if strategy not in HEURISTIC_REGISTRY:
@@ -482,7 +473,6 @@ def greedy_pack(
             heuristic_fn,
             problem,
             valid_candidates,
-            heuristic_kwargs,
         )
     else:
         placements = _greedy_pack_iter(
@@ -491,7 +481,6 @@ def greedy_pack(
             problem,
             selector_fn,
             valid_candidates,
-            heuristic_kwargs,
         )
     target_nodes = problem.target.node_set()
     return PackingSolution.from_placements(placements, target_nodes)
@@ -507,12 +496,16 @@ def _greedy_pack_iter(
     problem: PackingProblem,
     selector_fn: Callable[..., tuple[float, str, Shape, float, int] | None],
     valid_candidates: list[tuple[str, Shape, float, int]],
-    heuristic_kwargs: dict,
 ) -> list[tuple[str, Shape, float]]:
     placements: list[tuple[str, Shape, float]] = placements or []
     occupied_nodes = union_shapes(
         [placement for _, placement, _ in placements]
     ).node_set()
+
+    # Check if there are any valid candidates left
+    if not valid_candidates:
+        logger.info("No valid candidates available, returning initial placements.")
+        return placements
 
     # Recompute heuristic after each placement (adaptive but slower)
     n_target_nodes = len(problem.target.node_set())
@@ -537,7 +530,7 @@ def _greedy_pack_iter(
 
         # Compute priorities for all candidates (heuristic may need full context)
         priorities = heuristic_fn(
-            problem, occupied_nodes, valid_candidates, **heuristic_kwargs
+            problem, occupied_nodes, valid_candidates
         )
 
         # Extract valid prioritized candidates
@@ -575,7 +568,6 @@ def _greedy_pack_once(
     | Callable[..., ndarray[tuple[Any, ...], dtype[Any]]],
     problem: PackingProblem,
     valid_candidates: list[tuple[str, Shape, float, int]],
-    heuristic_kwargs: dict,
 ) -> list[tuple[str, Shape, float]]:
     placements: list[tuple[str, Shape, float]] = placements or []
     occupied_nodes = union_shapes(
@@ -585,7 +577,7 @@ def _greedy_pack_once(
     with log_elapsed("compute_priorities_once"):
         logger.info(f"There are {len(valid_candidates)} candidate placements.")
         priorities = heuristic_fn(
-            problem, occupied_nodes, valid_candidates, **heuristic_kwargs
+            problem, occupied_nodes, valid_candidates
         )
 
     # Zip priorities with candidates

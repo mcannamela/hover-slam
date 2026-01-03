@@ -315,6 +315,7 @@ def pack_javelance(
             pieces=pieces,
             forbidden_edges=JAVELANCE_FORBIDDEN_EDGES,
             allowed=JAVELANCE.difference(target),
+            uncovered_node_cost=empty_hex_cost,
         )
 
         # Try different strategies
@@ -325,13 +326,10 @@ def pack_javelance(
             ("expected_coverage_cost", {"recompute_heuristic": True}),
             ("expected_coverage_cost_lookahead", {"recompute_heuristic": True}),
         ]:
-            # Add empty_hex_cost to heuristic_kwargs
-            heuristic_kwargs = {"uncovered_node_cost": empty_hex_cost}
             solution = greedy_pack(
                 problem,
                 initial_placements=initial_placements,
                 strategy=strategy,
-                heuristic_kwargs=heuristic_kwargs,
                 **kwargs,
             )
 
