@@ -692,9 +692,36 @@ def render_solution(
 
     logger.info(f"Using coordinate ranges: X={x_range}, Y={y_range}")
 
+    # Build a mapping from node address to placement index
+    node_to_placement: dict[tuple[int, int], int] = {}
+    for i, (name, shape) in enumerate(solution.placements):
+        for node in shape.nodes:
+            node_addr = tuple(node)
+            # If a node is covered by multiple placements, use the first one
+            if node_addr not in node_to_placement:
+                node_to_placement[node_addr] = i
+
+    # Create labels function that returns placement index or empty string
+    def placement_labels(i: int, j: int) -> str:
+        idx = node_to_placement.get((i, j))
+        return str(idx) if idx is not None else ""
+
     # Get the figure layout parameters from plot_javelance
     # We need to ensure all figures use the same scale
-    problem_fig = plot_javelance(targeted_regions)
+    # Create custom rendering with labels showing placement indices
+    from javelance.javelance import JAVELANCE, JAVELANCE_FORBIDDEN
+    from javelance.plotting import plot_shape_hexes
+    from javelance.shapes import union_shapes
+
+    problem_fig = plot_shape_hexes(JAVELANCE_GRID_SHAPE, label_hexes=False)
+    JAVELANCE_FORBIDDEN.plot(problem_fig, inset_ratio=0.9)
+
+    # Plot targeted regions with labels
+    targeted_union = union_shapes(targeted_regions)
+    targeted_union.plot(problem_fig, plot_boundary=True, inset_ratio=0.8, labels=placement_labels)
+
+    # Plot uncovered areas
+    JAVELANCE.difference(targeted_union).plot(problem_fig, inset_ratio=0.8)
 
     # Extract layout dimensions to ensure consistency
     fig_width = problem_fig.layout.width
