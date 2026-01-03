@@ -141,6 +141,11 @@ def pack_javelance(
         "--empty-hex-cost",
         help="Cost per uncovered target node (empty hex)",
     ),
+    num_regions: int = typer.Option(
+        4,
+        "--num-regions",
+        help="Number of regions to target in each combination",
+    ),
 ):
     """
     Solve packing problems for different region combinations.
@@ -195,7 +200,9 @@ def pack_javelance(
     result_counter = 0
 
     # Get all region combinations
-    region_combinations = get_array_combinations(np.arange(len(JAVELANCE_REGIONS)), 4)
+    region_combinations = get_array_combinations(
+        np.arange(len(JAVELANCE_REGIONS)), num_regions
+    )
 
     # Sort by previous results if provided
     if sort_by_previous is not None:
@@ -276,7 +283,9 @@ def pack_javelance(
     if initial_solution is not None:
         initial_solution_path = Path(initial_solution)
         if not initial_solution_path.exists():
-            raise FileNotFoundError(f"Initial solution file not found: {initial_solution}")
+            raise FileNotFoundError(
+                f"Initial solution file not found: {initial_solution}"
+            )
 
         logger.info(f"Loading initial placements from: {initial_solution}")
         with open(initial_solution_path, "r") as f:
@@ -312,9 +321,9 @@ def pack_javelance(
         logger.info("\n=== Testing different greedy strategies ===")
 
         for strategy, kwargs in [
-            # ("largest_first", {}),
+            ("largest_first", {}),
             ("expected_coverage_cost", {"recompute_heuristic": True}),
-            # ("expected_coverage_cost_lookahead", {"recompute_heuristic": True}),
+            ("expected_coverage_cost_lookahead", {"recompute_heuristic": True}),
         ]:
             # Add empty_hex_cost to heuristic_kwargs
             heuristic_kwargs = {"uncovered_node_cost": empty_hex_cost}
@@ -323,7 +332,7 @@ def pack_javelance(
                 initial_placements=initial_placements,
                 strategy=strategy,
                 heuristic_kwargs=heuristic_kwargs,
-                **kwargs
+                **kwargs,
             )
 
             logger.info(f"\nStrategy: {strategy}")
@@ -748,7 +757,9 @@ def render_solution(
 
     # Plot targeted regions with labels
     targeted_union = union_shapes(targeted_regions)
-    targeted_union.plot(problem_fig, plot_boundary=True, inset_ratio=0.8, labels=placement_labels)
+    targeted_union.plot(
+        problem_fig, plot_boundary=True, inset_ratio=0.8, labels=placement_labels
+    )
 
     # Plot uncovered areas
     JAVELANCE.difference(targeted_union).plot(problem_fig, inset_ratio=0.8)
