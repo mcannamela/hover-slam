@@ -271,6 +271,32 @@ def pack_javelance(
 
     logger.info(f"Solving {len(region_combinations)} region combinations")
 
+    # Load initial placements if provided
+    initial_placements = None
+    if initial_solution is not None:
+        initial_solution_path = Path(initial_solution)
+        if not initial_solution_path.exists():
+            raise FileNotFoundError(f"Initial solution file not found: {initial_solution}")
+
+        logger.info(f"Loading initial placements from: {initial_solution}")
+        with open(initial_solution_path, "r") as f:
+            solution_data = json.load(f)
+        loaded_solution = deserialize_solution_from_json(solution_data)
+
+        # Add costs to placements based on piece names
+        # Map piece names to costs
+        piece_name_to_cost = {
+            "DOODAD": doodad_cost,
+            "GIZMO": gizmo_cost,
+            "SPROCKET": sprocket_cost,
+        }
+        initial_placements = []
+        for name, shape in loaded_solution.placements:
+            cost = piece_name_to_cost[name]
+            initial_placements.append((name, shape, cost))
+
+        logger.info(f"Loaded {len(initial_placements)} initial placements")
+
     for combo in tqdm(region_combinations):
         logger.info(f"Testing regions: {combo}")
         regions = [JAVELANCE_REGIONS[i] for i in combo]
@@ -293,7 +319,11 @@ def pack_javelance(
             # Add empty_hex_cost to heuristic_kwargs
             heuristic_kwargs = {"uncovered_node_cost": empty_hex_cost}
             solution = greedy_pack(
-                problem, strategy=strategy, heuristic_kwargs=heuristic_kwargs, **kwargs
+                problem,
+                initial_placements=initial_placements,
+                strategy=strategy,
+                heuristic_kwargs=heuristic_kwargs,
+                **kwargs
             )
 
             logger.info(f"\nStrategy: {strategy}")
