@@ -92,6 +92,10 @@ def deserialize_solution_from_json(data: dict) -> PackingSolution:
 
 @app.command()
 def pack_javelance(
+    initial_solution: str = typer.Option(
+        None,
+        help="Path to previous solution file from which to begin the packing problem",
+    ),
     show_plots: bool = typer.Option(
         False,
         "--show-plots/--no-show-plots",
@@ -696,8 +700,14 @@ def render_solution(
     fig_width = problem_fig.layout.width
     fig_height = problem_fig.layout.height
 
+    # Scale down to half size
+    fig_width = fig_width / 2
+    fig_height = fig_height / 2
+
     # Set explicit axis ranges on the problem figure
     problem_fig.update_layout(
+        width=fig_width,
+        height=fig_height,
         xaxis=dict(range=x_range, scaleanchor="y", scaleratio=1),
         yaxis=dict(range=y_range),
     )
@@ -785,65 +795,71 @@ def render_solution(
     # Crop all images to eliminate extra whitespace/transparency
     logger.info("Cropping images to content bounds...")
 
-    # Find bounding box from composite (has all content)
-    composite_array = np.array(composite)
+    def crop_to_content(img: Image.Image, padding: int = 10) -> Image.Image:
+        """
+        Crop an image to its content bounds, eliminating whitespace/transparency.
 
-    # For RGBA images, find non-transparent pixels
-    # For the composite, we want to find where there's actual content
-    if composite.mode == "RGBA":
-        # Get alpha channel
-        alpha = composite_array[:, :, 3]
-        # Find rows and columns with non-zero alpha
-        rows = np.any(alpha > 0, axis=1)
-        cols = np.any(alpha > 0, axis=0)
-    else:
-        # For RGB, find non-white pixels
-        is_white = np.all(composite_array == 255, axis=2)
-        rows = np.any(~is_white, axis=1)
-        cols = np.any(~is_white, axis=0)
+        Args:
+            img: PIL Image to crop
+            padding: Pixels of padding to add around content
 
-    # Get bounding box
-    row_indices = np.where(rows)[0]
-    col_indices = np.where(cols)[0]
+        Returns:
+            Cropped PIL Image
+        """
+        img_array = np.array(img)
 
-    if len(row_indices) > 0 and len(col_indices) > 0:
-        y_min, y_max = row_indices[0], row_indices[-1]
-        x_min, x_max = col_indices[0], col_indices[-1]
+        # For RGBA images, find non-transparent pixels
+        # For RGB images, find non-white pixels
+        if img.mode == "RGBA":
+            # Get alpha channel
+            alpha = img_array[:, :, 3]
+            # Find rows and columns with non-zero alpha
+            rows = np.any(alpha > 0, axis=1)
+            cols = np.any(alpha > 0, axis=0)
+        else:
+            # For RGB, find non-white pixels
+            is_white = np.all(img_array[:, :, :3] == 255, axis=2)
+            rows = np.any(~is_white, axis=1)
+            cols = np.any(~is_white, axis=0)
 
-        # Add small padding
-        padding = 10
-        y_min = max(0, y_min - padding)
-        y_max = min(composite.height - 1, y_max + padding)
-        x_min = max(0, x_min - padding)
-        x_max = min(composite.width - 1, x_max + padding)
+        # Get bounding box
+        row_indices = np.where(rows)[0]
+        col_indices = np.where(cols)[0]
 
-        crop_box = (x_min, y_min, x_max + 1, y_max + 1)
-        logger.info(f"  Crop box: x=[{x_min}, {x_max}], y=[{y_min}, {y_max}]")
-        logger.info(
-            f"  Original size: {composite.width}x{composite.height}, "
-            f"Cropped size: {x_max-x_min+1}x{y_max-y_min+1}"
-        )
+        if len(row_indices) > 0 and len(col_indices) > 0:
+            y_min, y_max = row_indices[0], row_indices[-1]
+            x_min, x_max = col_indices[0], col_indices[-1]
 
-        # Crop the composite
-        composite_cropped = composite.crop(crop_box)
-        composite_cropped.save(str(composite_path))
-        logger.info(f"  Cropped composite")
+            # Add padding
+            y_min = max(0, y_min - padding)
+            y_max = min(img.height - 1, y_max + padding)
+            x_min = max(0, x_min - padding)
+            x_max = min(img.width - 1, x_max + padding)
 
-        # Crop the problem
-        problem_cropped = problem_img.crop(crop_box)
-        problem_cropped.save(str(problem_path))
-        logger.info(f"  Cropped problem")
+            crop_box = (x_min, y_min, x_max + 1, y_max + 1)
+            return img.crop(crop_box)
+        else:
+            # No content found, return original image
+            return img
 
-        # Crop all placements
-        for i in range(len(solution.placements)):
-            placement_path_crop = output_dir / f"placement_{i:03d}.png"
-            placement_img = Image.open(str(placement_path_crop))
-            placement_cropped = placement_img.crop(crop_box)
-            placement_cropped.save(str(placement_path_crop))
+    # Crop the composite
+    composite_cropped = crop_to_content(composite, padding=10)
+    composite_cropped.save(str(composite_path))
+    logger.info(f"  Cropped composite: {composite.size} -> {composite_cropped.size}")
 
-        logger.info(f"  Cropped {len(solution.placements)} placement images")
-    else:
-        logger.warning("Could not determine crop box - no content found")
+    # Crop the problem
+    problem_cropped = crop_to_content(problem_img, padding=10)
+    problem_cropped.save(str(problem_path))
+    logger.info(f"  Cropped problem: {problem_img.size} -> {problem_cropped.size}")
+
+    # Crop all placements individually
+    for i in range(len(solution.placements)):
+        placement_path_crop = output_dir / f"placement_{i:03d}.png"
+        placement_img = Image.open(str(placement_path_crop))
+        placement_cropped = crop_to_content(placement_img, padding=10)
+        placement_cropped.save(str(placement_path_crop))
+
+    logger.info(f"  Cropped {len(solution.placements)} placement images individually")
 
     logger.info(
         f"\n=== Rendering complete ===\n"

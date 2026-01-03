@@ -14,7 +14,7 @@ from loguru import logger
 from numpy import dtype, ndarray
 from tqdm import tqdm
 
-from javelance.shapes import Shape
+from javelance.shapes import Shape, union_shapes
 
 # Type aliases for cleaner signatures
 Candidate = tuple[str, Shape, float, int]  # (name, placement, cost, num_nodes)
@@ -416,6 +416,7 @@ def log_elapsed(label="block"):
 
 def greedy_pack(
     problem: PackingProblem,
+    initial_placements: list[tuple[str, Shape]] = None,
     strategy: str | None = None,
     heuristic_fn: HeuristicFn | None = None,
     selector_fn: SelectorFn | None = None,
@@ -427,6 +428,7 @@ def greedy_pack(
 
     Args:
         problem: The packing problem to solve
+        initial_placements: Initial placements in solution, defaults to empty set.
         strategy: String name of a registered strategy (e.g., "cost_per_node",
             "expected_coverage_cost"). If provided, overrides heuristic_fn.
         heuristic_fn: Custom heuristic function to compute placement priorities.
@@ -443,6 +445,7 @@ def greedy_pack(
     Returns:
         A PackingSolution with the greedy packing result
     """
+    initial_placements = initial_placements or []
     if heuristic_kwargs is None:
         heuristic_kwargs = {}
     # Resolve the heuristic function
@@ -463,26 +466,39 @@ def greedy_pack(
 
     # Generate all possible placements for all pieces
     valid_candidates: list[Candidate] = []
+    occupied_nodes = union_shapes([p for _, p, _ in initial_placements]).node_set()
     with log_elapsed("initialize_valid_placements"):
         for name, shape, cost in problem.pieces:
             piece_placements = problem.generate_all_placements(shape)
             for placement in piece_placements:
+                if placement.node_set() & occupied_nodes:
+                    continue
                 num_nodes = len(placement.node_set())
                 valid_candidates.append((name, placement, cost, num_nodes))
 
     if not recompute_heuristic:
         placements = _greedy_pack_once(
-            heuristic_fn, problem, valid_candidates, heuristic_kwargs
+            initial_placements,
+            heuristic_fn,
+            problem,
+            valid_candidates,
+            heuristic_kwargs,
         )
     else:
         placements = _greedy_pack_iter(
-            heuristic_fn, problem, selector_fn, valid_candidates, heuristic_kwargs
+            initial_placements,
+            heuristic_fn,
+            problem,
+            selector_fn,
+            valid_candidates,
+            heuristic_kwargs,
         )
     target_nodes = problem.target.node_set()
     return PackingSolution.from_placements(placements, target_nodes)
 
 
 def _greedy_pack_iter(
+    placements: list[tuple[str, Shape]],
     heuristic_fn: Callable[
         [PackingProblem, set[tuple[int, int]], list[tuple[str, Shape, float, int]]],
         ndarray[tuple[Any, ...], dtype[Any]],
@@ -493,8 +509,10 @@ def _greedy_pack_iter(
     valid_candidates: list[tuple[str, Shape, float, int]],
     heuristic_kwargs: dict,
 ) -> list[tuple[str, Shape, float]]:
-    occupied_nodes: set[Shape.Node] = set()
-    placements: list[tuple[str, Shape, float]] = []
+    placements: list[tuple[str, Shape, float]] = placements or []
+    occupied_nodes = union_shapes(
+        [placement for _, placement, _ in placements]
+    ).node_set()
 
     # Recompute heuristic after each placement (adaptive but slower)
     n_target_nodes = len(problem.target.node_set())
@@ -549,6 +567,7 @@ def _greedy_pack_iter(
 
 
 def _greedy_pack_once(
+    placements: list[tuple[str, Shape]],
     heuristic_fn: Callable[
         [PackingProblem, set[tuple[int, int]], list[tuple[str, Shape, float, int]]],
         ndarray[tuple[Any, ...], dtype[Any]],
@@ -558,8 +577,10 @@ def _greedy_pack_once(
     valid_candidates: list[tuple[str, Shape, float, int]],
     heuristic_kwargs: dict,
 ) -> list[tuple[str, Shape, float]]:
-    occupied_nodes: set[Shape.Node] = set()
-    placements: list[tuple[str, Shape, float]] = []
+    placements: list[tuple[str, Shape, float]] = placements or []
+    occupied_nodes = union_shapes(
+        [placement for _, placement, _ in placements]
+    ).node_set()
     # Compute priorities once upfront for efficiency
     with log_elapsed("compute_priorities_once"):
         logger.info(f"There are {len(valid_candidates)} candidate placements.")
