@@ -1,0 +1,211 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{{ encounter_name }}</title>
+<style>
+  @page { size: Letter landscape; margin: 0.2in; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 7.6px;
+    line-height: 1.28;
+    color: #1c1c1c;
+    margin: 0;
+  }
+  h1.doc-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 16px;
+    color: #7a2618;
+    margin: 0 0 8px 0;
+  }
+  .columns {
+    column-count: 2;
+    column-gap: 8px;
+  }
+  .card {
+    break-inside: avoid;
+    border: 1px solid #c9c2b4;
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin: 0 0 8px 0;
+    background: #fffefb;
+    box-sizing: border-box;
+    width: 100%;
+    display: inline-block;
+  }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 3px;
+  }
+  .name {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: bold;
+    font-size: 12px;
+    color: #7a2618;
+    margin: 0;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+  .count-badge {
+    font-size: 8.5px;
+    font-weight: bold;
+    color: #7a2618;
+    border: 1px solid #7a2618;
+    border-radius: 3px;
+    padding: 1px 5px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+  .meta {
+    font-style: italic;
+    color: #55565a;
+    font-size: 7px;
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .meta .sep { margin: 0 3px; }
+  hr.rule {
+    border: none;
+    border-top: 2px solid #7a2618;
+    margin: 2px 0 4px 0;
+  }
+  .statline p { margin: 1px 0; }
+  .statline b { color: #1c1c1c; }
+  .ability-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4px 0;
+    font-size: 7.2px;
+  }
+  .ability-table th {
+    font-weight: normal;
+    color: #55565a;
+    font-size: 6.3px;
+    text-align: center;
+    padding: 0 1px;
+  }
+  .ability-table td {
+    text-align: center;
+    padding: 1px 1px;
+  }
+  .ability-table tr.shade td { background: #efefe9; }
+  .ability-table td.stat-key { font-weight: bold; text-align: left; padding-left: 4px; white-space: nowrap; }
+  .fields p { margin: 2px 0; }
+  .fields b { }
+  .xref { text-decoration: underline; }
+  .section-title {
+    font-family: Georgia, "Times New Roman", serif;
+    color: #7a2618;
+    font-size: 9.5px;
+    margin: 5px 0 1px 0;
+    border-bottom: 1.5px solid #7a2618;
+    padding-bottom: 1px;
+  }
+  .entry-name { font-weight: bold; font-style: italic; }
+  .entry-block p { margin: 2px 0; }
+  table.two-col { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.two-col > tbody > tr > td { vertical-align: top; padding: 0; }
+  table.two-col > tbody > tr > td.left { width: 33%; padding-right: 8px; }
+  table.two-col > tbody > tr > td.right { width: 67%; }
+  ul { margin: 2px 0; padding-left: 12px; }
+</style>
+</head>
+<body>
+<h1 class="doc-title">{{ encounter_name }}</h1>
+<div class="columns">
+{% for m in monsters %}
+  <div class="card">
+    <div class="card-head">
+      <span class="name">{{ m.name }}</span>
+      <span class="meta">{{ m.subtitle }}<span class="sep">&bull;</span>CR {{ m.cr }} (PB {{ m.prof_bonus }})<span class="sep">&bull;</span>{{ m.languages }}</span>
+      <span class="count-badge">&times;{{ m.count }}</span>
+    </div>
+    <hr class="rule">
+    <table class="two-col"><tbody><tr>
+      <td class="left">
+        <div class="statline">
+          <p><b>AC</b> {{ m.ac }}{% if m.ac_desc %} {{ m.ac_desc }}{% endif %}
+             &nbsp;&nbsp;<b>Initiative</b> {{ m.init }} ({{ m.init_passive }})</p>
+          <p><b>HP</b> {{ m.hp }} ({{ m.hp_dice }})</p>
+          <p><b>Speed</b> {{ m.speed }}</p>
+        </div>
+        <table class="ability-table">
+          <tr><th></th><th>MOD</th><th>SAVE</th><th></th><th>MOD</th><th>SAVE</th></tr>
+          {% for i in range(3) %}
+          <tr class="{{ 'shade' if i % 2 == 0 else '' }}">
+            <td class="stat-key">{{ m.ability_rows[i].key }} {{ m.ability_rows[i].score }}</td>
+            <td>{{ m.ability_rows[i].mod }}</td>
+            <td>{{ m.ability_rows[i].save }}</td>
+            <td class="stat-key">{{ m.ability_rows[i+3].key }} {{ m.ability_rows[i+3].score }}</td>
+            <td>{{ m.ability_rows[i+3].mod }}</td>
+            <td>{{ m.ability_rows[i+3].save }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        <div class="fields">
+          {% if m.skills %}
+          <p><b>Skills</b> {{ m.skills }}</p>
+          {% endif %}
+          <p><b>Senses</b> {{ m.senses }}</p>
+          {% for label, val in m.damage_lines %}
+          <p><b>Damage {{ label }}</b> {{ val }}</p>
+          {% endfor %}
+          {% if m.condition_immunities %}
+          <p><b>Condition Immunities</b> {{ m.condition_immunities }}</p>
+          {% endif %}
+        </div>
+      </td>
+      <td class="right">
+        {% for e in m.traits %}
+        <div class="entry-block"><p>{% if e.name %}<span class="entry-name">{{ e.name }}.</span> {% endif %}{{ e.body|safe }}</p></div>
+        {% endfor %}
+
+        {% if m.actions %}
+        <div class="section-title">Actions</div>
+        {% for e in m.actions %}
+        <div class="entry-block"><p>{% if e.name %}<span class="entry-name">{{ e.name }}.</span> {% endif %}{{ e.body|safe }}</p></div>
+        {% endfor %}
+        {% endif %}
+
+        {% if m.bonus_actions %}
+        <div class="section-title">Bonus Actions</div>
+        {% for e in m.bonus_actions %}
+        <div class="entry-block"><p>{% if e.name %}<span class="entry-name">{{ e.name }}.</span> {% endif %}{{ e.body|safe }}</p></div>
+        {% endfor %}
+        {% endif %}
+
+        {% if m.reactions %}
+        <div class="section-title">Reactions</div>
+        {% for e in m.reactions %}
+        <div class="entry-block"><p>{% if e.name %}<span class="entry-name">{{ e.name }}.</span> {% endif %}{{ e.body|safe }}</p></div>
+        {% endfor %}
+        {% endif %}
+
+        {% if m.legendary %}
+        <div class="section-title">Legendary Actions</div>
+        {% for e in m.legendary %}
+        <div class="entry-block"><p>{% if e.name %}<span class="entry-name">{{ e.name }}.</span> {% endif %}{{ e.body|safe }}</p></div>
+        {% endfor %}
+        {% endif %}
+
+        {% if m.mythic %}
+        <div class="section-title">Mythic Actions</div>
+        {% for e in m.mythic %}
+        <div class="entry-block"><p>{% if e.name %}<span class="entry-name">{{ e.name }}.</span> {% endif %}{{ e.body|safe }}</p></div>
+        {% endfor %}
+        {% endif %}
+      </td>
+    </tr></tbody></table>
+  </div>
+{% endfor %}
+</div>
+</body>
+</html>

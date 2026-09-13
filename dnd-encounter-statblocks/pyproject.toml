@@ -1,0 +1,11 @@
+[project]
+name = "dnd-encounter-statblocks"
+version = "0.1.0"
+description = "Pull full monster stat blocks for a D&D Beyond encounter and render them as a compact printable PDF"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "jinja2>=3.1.6",
+    "playwright>=1.62.0",
+]

@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[oc]
+.venv/
+
+# Playwright browser binaries (installed separately, not vendored)
+chrome-profile/
+
+# Auth/session data -- contains live login cookies, never commit
+auth.json
+
+# Per-encounter fetched/generated data -- regenerate per run
+config.json
+monsters_full.json
+rendered.html
+stat_blocks.pdf
+*.pdf
