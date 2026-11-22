@@ -4,6 +4,7 @@ import itertools
 import math
 import time
 from contextlib import contextmanager
+from copy import copy
 from dataclasses import dataclass
 from functools import lru_cache
 from socket import send_fds
@@ -438,7 +439,9 @@ def greedy_pack(
     Returns:
         A PackingSolution with the greedy packing result
     """
-    initial_placements = initial_placements or []
+    initial_placements = copy(initial_placements) or []
+    if heuristic_kwargs is None:
+        heuristic_kwargs = {}
     # Resolve the heuristic function
     if strategy is not None:
         if strategy not in HEURISTIC_REGISTRY:
@@ -466,7 +469,9 @@ def greedy_pack(
                     continue
                 num_nodes = len(placement.node_set())
                 valid_candidates.append((name, placement, cost, num_nodes))
-
+    if not valid_candidates:
+        logger.info(f"No valid placements found for {problem}, solution is just the initial placements")
+        return PackingSolution.from_placements(initial_placements, problem.target.node_set())
     if not recompute_heuristic:
         placements = _greedy_pack_once(
             initial_placements,
